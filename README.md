@@ -49,3 +49,6 @@ shell before testing. The build output is `dist/`.
 The static demo needs no R2, Supabase, Gemini, Stripe, domain purchase, or secrets.
 Integration setup will be added alongside the ticket that implements it. Do not
 enable private uploads or charge customers based on this preview.
+
+Reference: [Cloudflare Pages Vite deployment](https://developers.cloudflare.com/pages/framework-guides/deploy-a-vite3-project/)
+and [build environment configuration](https://developers.cloudflare.com/pages/configuration/build-image/).
