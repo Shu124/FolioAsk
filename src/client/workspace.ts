@@ -11,7 +11,12 @@ export async function mountWorkspace(root: HTMLElement) {
   const loginForm = root.querySelector<HTMLFormElement>("#signin-form")!;
   signin.hidden = true;
   status.textContent = "Restoring session…";
+  let disposeDocuments = () => {};
+  let workspaceSequence = 0;
   function signedOut() {
+    workspaceSequence++;
+    disposeDocuments();
+    disposeDocuments = () => {};
     signin.hidden = false;
     home.hidden = true;
     detail.replaceChildren();
@@ -53,9 +58,12 @@ export async function mountWorkspace(root: HTMLElement) {
     }
   }
   async function openWorkspace(id: string) {
+    const current = ++workspaceSequence;
     const workspace = await api<Workspace>(
       `/workspaces/${encodeURIComponent(id)}`,
     );
+    if (current !== workspaceSequence) return;
+    disposeDocuments();
     const title = document.createElement("h2");
     title.textContent = workspace.name;
     const note = document.createElement("p");
@@ -63,7 +71,9 @@ export async function mountWorkspace(root: HTMLElement) {
     const documents = document.createElement("div");
     detail.replaceChildren(title, note, documents);
     history.replaceState(null, "", `/app?workspace=${encodeURIComponent(id)}`);
-    await mountDocuments(documents, id, api, signedOut);
+    const view = mountDocuments(documents, id, api, signedOut);
+    disposeDocuments = view.dispose;
+    await view.ready;
   }
   async function loadWorkspaces() {
     const workspaces = await api<Workspace[]>("/workspaces");

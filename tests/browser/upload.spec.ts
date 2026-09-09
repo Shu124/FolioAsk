@@ -12,13 +12,11 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Workspace name").fill("Upload journey");
   await page.getByRole("button", { name: "Create workspace" }).click();
-  await page
-    .getByLabel("Choose PDF")
-    .setInputFiles({
-      name: "contract.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await samplePdf()),
-    });
+  await page.getByLabel("Choose PDF").setInputFiles({
+    name: "contract.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await samplePdf()),
+  });
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
@@ -41,4 +39,9 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await expect(
     page.locator('canvas[aria-label="Original page 1"]'),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sign in to your workspace" }),
+  ).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
 });

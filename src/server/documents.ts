@@ -102,22 +102,34 @@ async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
       const passages: Passage[] = [];
       for (const item of content.items) {
         if (!("str" in item) || !item.str.trim()) continue;
-        const [x, y] = viewport.convertToViewportPoint(
-          item.transform[4],
-          item.transform[5],
-        );
+        const [a, b, c, d, x0, y0] = item.transform;
+        const horizontal = Math.hypot(a, b) || 1;
+        const vertical = Math.hypot(c, d) || 1;
+        const dx = [
+          (a / horizontal) * item.width,
+          (b / horizontal) * item.width,
+        ];
+        const dy = [(c / vertical) * item.height, (d / vertical) * item.height];
+        const corners = [
+          [x0, y0],
+          [x0 + dx[0], y0 + dx[1]],
+          [x0 + dy[0], y0 + dy[1]],
+          [x0 + dx[0] + dy[0], y0 + dx[1] + dy[1]],
+        ].map(([x, y]) => viewport.convertToViewportPoint(x, y));
+        const xs = corners.map((point) => point[0]),
+          ys = corners.map((point) => point[1]);
         passages.push({
           id: `p${number}-${passages.length + 1}`,
           text: item.str,
           box: {
-            x,
-            y: y - item.height,
-            width: item.width,
-            height: Math.max(item.height, 1),
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(1, Math.max(...xs) - Math.min(...xs)),
+            height: Math.max(1, Math.max(...ys) - Math.min(...ys)),
           },
         });
       }
-      if (!passages.length)
+      if (!passages.length && (await page.getOperatorList()).fnArray.length > 0)
         throw new HttpError(
           422,
           `Page ${number} has no readable text. Scanned-page support is not enabled yet.`,
@@ -129,6 +141,8 @@ async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
         passages,
       });
     }
+    if (!pages.some((page) => page.passages.length))
+      throw new HttpError(422, "The PDF has no readable text.");
     return pages;
   } catch (error) {
     if (error instanceof HttpError) throw error;

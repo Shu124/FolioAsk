@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createApi } from "../../src/server/api.ts";
 import { SqliteStore } from "../../src/server/sqlite-store.ts";
-import { samplePdf } from "../fixtures/pdf.ts";
+import { samplePdf, specialPdf } from "../fixtures/pdf.ts";
 
 async function setup(approvedFiles: Uint8Array[]) {
   const store = new SqliteStore(":memory:");
@@ -119,6 +119,32 @@ test("owned text PDF upload preserves original, page evidence and remaining allo
       `/workspaces/${workspace.id}/documents`,
     ])
       assert.equal((await request(path, "GET", undefined, bob)).status, 404);
+  } finally {
+    store.close();
+  }
+});
+
+test("rotated passages follow page orientation and blank separators retain page numbering", async () => {
+  const rotated = await specialPdf("rotated");
+  const blank = await specialPdf("blank");
+  const image = await specialPdf("image");
+  const { store, upload } = await setup([rotated, blank, image]);
+  try {
+    const rotatedResponse = await upload(rotated);
+    assert.equal(rotatedResponse.status, 201);
+    const rotatedDocument = await rotatedResponse.json();
+    const passage = rotatedDocument.pages[0].passages[0];
+    assert.ok(
+      passage.box.height > passage.box.width,
+      "The rotated heading must have a vertical footprint",
+    );
+    const blankResponse = await upload(blank);
+    assert.equal(blankResponse.status, 201);
+    const blankDocument = await blankResponse.json();
+    assert.equal(blankDocument.pages.length, 2);
+    assert.equal(blankDocument.pages[1].number, 2);
+    assert.deepEqual(blankDocument.pages[1].passages, []);
+    assert.equal((await upload(image)).status, 422);
   } finally {
     store.close();
   }

@@ -1,7 +1,7 @@
 import type { DocumentRecord } from "../server/documents";
 
 type Api = <T>(path: string, method?: string, data?: unknown) => Promise<T>;
-export async function mountDocuments(
+export function mountDocuments(
   root: HTMLElement,
   workspaceId: string,
   api: Api,
@@ -15,15 +15,28 @@ export async function mountDocuments(
   const preview = root.querySelector<HTMLElement>("#document-preview")!;
   let retryKey = crypto.randomUUID();
   let sequence = 0;
+  let disposed = false;
+  let activeUpload: XMLHttpRequest | undefined;
+  let activeDownload: AbortController | undefined;
+  let releasePdf = () => {};
   input.onchange = () => {
     retryKey = crypto.randomUUID();
   };
   async function openDocument(id: string) {
+    if (disposed) return;
     const current = ++sequence;
+    activeDownload?.abort();
+    releasePdf();
+    releasePdf = () => {};
+    const download = new AbortController();
+    activeDownload = download;
     status.textContent = "Loading original…";
     try {
       const document = await api<DocumentRecord>(`/documents/${id}`);
-      const response = await fetch(`/api/documents/${id}/original`);
+      if (disposed || current !== sequence) return;
+      const response = await fetch(`/api/documents/${id}/original`, {
+        signal: download.signal,
+      });
       if (response.status === 401) onUnauthorized();
       if (!response.ok)
         throw new Error("Original unavailable. Sign in again or retry.");
@@ -31,7 +44,12 @@ export async function mountDocuments(
       const { getDocumentProxy } = await import("unpdf");
       const pdf = await getDocumentProxy(bytes);
       try {
-        if (current !== sequence || !root.isConnected) return;
+        if (disposed || current !== sequence || !root.isConnected) return;
+        let renderTask: { cancel(): void } | undefined;
+        releasePdf = () => {
+          renderTask?.cancel();
+          void pdf.loadingTask.destroy().catch(() => {});
+        };
         preview.replaceChildren();
         const title = documentNode("h4", document.name);
         const pager = documentNode("div", "");
@@ -54,6 +72,7 @@ export async function mountDocuments(
         );
         let pageNumber = 1;
         async function renderPage() {
+          if (disposed || current !== sequence) return;
           previous.disabled = true;
           next.disabled = true;
           try {
@@ -62,13 +81,17 @@ export async function mountDocuments(
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             canvas.setAttribute("aria-label", `Original page ${pageNumber}`);
-            await page.render({ canvas, viewport }).promise;
+            const task = page.render({ canvas, viewport });
+            renderTask = task;
+            await task.promise;
+            if (disposed || current !== sequence) return;
             label.textContent = `Page ${pageNumber} of ${pdf.numPages}`;
             text.textContent = document.pages[pageNumber - 1].passages
               .map((passage) => passage.text)
               .join("\n");
             status.textContent = `Ready · ${pdf.numPages} ${pdf.numPages === 1 ? "page" : "pages"}`;
           } catch {
+            if (disposed || current !== sequence) return;
             status.textContent =
               "Original could not be rendered. Download it to inspect; extracted text may be incomplete.";
           } finally {
@@ -85,20 +108,12 @@ export async function mountDocuments(
           void renderPage();
         };
         await renderPage();
-        // Release the PDF task when another document replaces this preview.
-        const observer = new MutationObserver(() => {
-          if (!canvas.isConnected) {
-            observer.disconnect();
-            void pdf.loadingTask.destroy();
-          }
-        });
-        observer.observe(root, { childList: true, subtree: true });
       } finally {
-        if (current !== sequence || !root.isConnected)
+        if (disposed || current !== sequence || !root.isConnected)
           await pdf.loadingTask.destroy();
       }
     } catch (error) {
-      if (current === sequence)
+      if (!disposed && current === sequence)
         status.textContent =
           error instanceof Error ? error.message : "Could not open document.";
     }
@@ -131,6 +146,8 @@ export async function mountDocuments(
     input.disabled = true;
     status.textContent = "Uploading…";
     const xhr = new XMLHttpRequest();
+    activeUpload = xhr;
+    xhr.timeout = 60_000;
     xhr.open(
       "POST",
       `/api/workspaces/${workspaceId}/documents?name=${encodeURIComponent(file.name)}`,
@@ -149,13 +166,16 @@ export async function mountDocuments(
       status.textContent = "Reading PDF and saving…";
     };
     xhr.onerror = () => {
+      if (disposed) return;
       status.textContent =
         "Connection failed. Retry this file; your retry key is preserved.";
       submit.disabled = false;
       input.disabled = false;
     };
+    xhr.ontimeout = xhr.onerror;
     xhr.onload = () => {
       void (async () => {
+        if (disposed) return;
         try {
           const result = JSON.parse(xhr.responseText);
           if (xhr.status === 401) onUnauthorized();
@@ -178,7 +198,16 @@ export async function mountDocuments(
     };
     xhr.send(file);
   };
-  await refresh();
+  return {
+    ready: refresh(),
+    dispose() {
+      disposed = true;
+      sequence++;
+      activeUpload?.abort();
+      activeDownload?.abort();
+      releasePdf();
+    },
+  };
 }
 function documentNode<K extends keyof HTMLElementTagNameMap>(
   tag: K,
