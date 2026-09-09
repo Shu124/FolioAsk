@@ -8,6 +8,8 @@ export async function mountWorkspace(root: HTMLElement) {
   const detail = root.querySelector<HTMLElement>("#workspace-detail")!;
   const list = root.querySelector<HTMLElement>("#workspace-list")!;
   const loginForm = root.querySelector<HTMLFormElement>("#signin-form")!;
+  signin.hidden = true;
+  status.textContent = "Restoring session…";
   function signedOut() {
     signin.hidden = false;
     home.hidden = true;
@@ -125,8 +127,10 @@ export async function mountWorkspace(root: HTMLElement) {
   try {
     await api("/session");
     await loadWorkspaces();
+    status.textContent = "";
   } catch (error) {
     signedOut();
+    status.textContent = "";
     if (error instanceof Error && !error.message.startsWith("Sign in"))
       status.textContent = error.message;
   }

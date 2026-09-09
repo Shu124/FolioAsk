@@ -36,7 +36,16 @@ export function createApi(deps: {
       ) {
         const data = await bodyJson(request);
         const email = requiredText(data.email, "Email", 254).toLowerCase();
-        const password = requiredText(data.password, "Password", 256);
+        if (
+          typeof data.password !== "string" ||
+          data.password.length === 0 ||
+          data.password.length > 256
+        )
+          throw new HttpError(
+            400,
+            "Password is required (maximum 256 characters).",
+          );
+        const password = data.password;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           throw new HttpError(400, "Enter a valid email address.");
         if (path === "/signup") {

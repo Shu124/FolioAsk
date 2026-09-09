@@ -6,6 +6,44 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+test("sign-in and signup preserve leading and trailing password spaces", async () => {
+  const store = new SqliteStore(":memory:");
+  const auth = {
+    async signIn(email: string, password: string) {
+      if (password !== " valid password ")
+        throw new Error("Invalid credentials");
+      return { id: email, email };
+    },
+    async signUp(_email: string, password: string) {
+      if (password !== " valid password ") throw new Error("Password changed");
+    },
+  };
+  const api = createApi({ store, auth });
+  try {
+    for (const [path, expected] of [
+      ["session", 200],
+      ["signup", 202],
+    ] as const) {
+      const response = await api(
+        new Request(`http://localhost/api/${path}`, {
+          method: "POST",
+          headers: {
+            Origin: "http://localhost",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: "alice@example.test",
+            password: " valid password ",
+          }),
+        }),
+      );
+      assert.equal(response.status, expected);
+    }
+  } finally {
+    store.close();
+  }
+});
+
 test("accounts recover sessions and persist only their own workspaces", async () => {
   const folder = await mkdtemp(join(tmpdir(), "folioask-test-"));
   const filename = join(folder, "state.sqlite");
