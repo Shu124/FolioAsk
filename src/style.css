@@ -16,6 +16,55 @@
   --border: #e1e7f0;
   --muted: #637084;
 }
+.upload-section {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+#upload-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+#upload-form input {
+  max-width: 330px;
+}
+.document-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.document-buttons button {
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+#document-preview canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+}
+.page-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  margin: 12px 0;
+}
+.page-controls button {
+  padding: 6px 9px;
+  font-size: 11px;
+}
+.extracted-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    13px/1.7 ui-monospace,
+    monospace;
+}
 .account-page {
   max-width: 1100px;
   margin: 50px auto;

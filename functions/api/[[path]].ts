@@ -3,10 +3,14 @@ import {
   supabaseAdapters,
   type SupabaseConfig,
 } from "../../src/server/supabase";
+import { r2Originals, type OriginalBucket } from "../../src/server/r2";
 
 export async function onRequest(context: {
   request: Request;
-  env: Partial<SupabaseConfig>;
+  env: Partial<SupabaseConfig> & {
+    ORIGINALS?: OriginalBucket;
+    APPROVED_PUBLIC_HASHES?: string;
+  };
 }) {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = context.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
@@ -17,7 +21,21 @@ export async function onRequest(context: {
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
-  return createApi(
-    supabaseAdapters({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY }),
-  )(context.request);
+  const adapters = supabaseAdapters({
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY,
+  });
+  return createApi({
+    ...adapters,
+    documents: context.env.ORIGINALS
+      ? {
+          store: adapters.store,
+          blobs: r2Originals(context.env.ORIGINALS),
+          approvedHashes: (context.env.APPROVED_PUBLIC_HASHES || "")
+            .split(",")
+            .map((hash) => hash.trim())
+            .filter(Boolean),
+        }
+      : undefined,
+  })(context.request);
 }

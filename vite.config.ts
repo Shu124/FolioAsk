@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createApi } from "./src/server/api.ts";
 import { SqliteStore } from "./src/server/sqlite-store.ts";
 import { supabaseAdapters } from "./src/server/supabase.ts";
@@ -20,6 +21,15 @@ export default defineConfig(({ mode }) => {
             store = new SqliteStore(".local/pilot.sqlite");
             api = createApi({
               store,
+              documents: {
+                store,
+                blobs: store,
+                approvedHashes: [
+                  createHash("sha256")
+                    .update(readFileSync("public/fixtures/contract.pdf"))
+                    .digest("hex"),
+                ],
+              },
               auth: {
                 async signIn(email, password) {
                   if (
@@ -67,9 +77,13 @@ export default defineConfig(({ mode }) => {
               let size = 0;
               for await (const chunk of req) {
                 size += chunk.length;
-                if (size > 16_384) {
-                  res.writeHead(413);
-                  res.end("Request too large");
+                if (size > 10_000_000) {
+                  res.writeHead(413, { "Content-Type": "application/json" });
+                  res.end(
+                    JSON.stringify({
+                      error: "Free files must be 10 MB or smaller.",
+                    }),
+                  );
                   return;
                 }
                 chunks.push(chunk);

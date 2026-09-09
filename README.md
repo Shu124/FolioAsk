@@ -8,8 +8,9 @@ supported document content with clickable citations.
 
 ## Project status
 
-The guided demo and account-owned workspaces are implemented. Live document
-processing, subscriptions, and regulatory compliance are not available or verified.
+The guided demo, owned workspaces, and controlled text-PDF upload/preview are
+implemented. Live AI answers, subscriptions, and regulatory compliance are not
+available or verified.
 
 - [MVP specification: user stories, implementation and testing decisions](docs/mvp-spec.md)
 - [GitHub aggregate issue and 18 child tickets](https://github.com/Shu124/FolioAsk/issues/1)
@@ -96,3 +97,46 @@ Browser tests enable it automatically. Production never falls back to fixture au
 
 Local API tests use temporary SQLite databases and controlled identity responses;
 they do not verify your Supabase project settings or replace deployed isolation tests.
+
+## Set up text-PDF originals in Cloudflare R2
+
+1. Complete Supabase setup, then run `supabase/migrations/002_documents.sql` in SQL
+   Editor. The SQL transaction serializes successful upload accounting across API
+   instances; do not replace it with browser-side counters.
+2. Enable R2 in your Cloudflare dashboard and create a private bucket, for example
+   `folioask-originals-dev`. Review account billing requirements before activation.
+   Keep public access and `r2.dev` access disabled. Do not add a public bucket domain.
+3. In the Pages project settings → Bindings, add an R2 bucket binding named
+   `ORIGINALS` pointing to that bucket. Use separate development and production
+   buckets/projects. Redeploy after binding changes.
+4. Run `npm run build` locally. The prebuild generates the synthetic test PDF and
+   prints its SHA-256 digest. Set `APPROVED_PUBLIC_HASHES` in Pages to that digest.
+   It accepts a comma-separated allowlist, but only add files whose exact bytes
+   have been reviewed for admission. Leave it empty to deny all new uploads.
+5. Redeploy, sign in, download the synthetic test PDF from the workspace, upload
+   it, and inspect the rendered page and extracted text. Confirm a second account
+   cannot download its original or extracted content, including by copied URL.
+6. Test concurrent uploads/retries against the deployed SQL/R2 configuration before
+   allowing a controlled pilot. Current automated tests use local SQLite storage;
+   they do not attest to your R2 settings or execute the PostgreSQL migration.
+
+Limits use decimal bytes: 10 MB = 10,000,000 bytes. Only successful uploads count
+toward the three-upload lifetime allowance. Keep the same Idempotency-Key on
+network retry; reusing a key for different file bytes/workspaces is rejected.
+Page text retains PDF text-item positions (including heading sizes and table
+alignment); complex reading order or merged table cells are not yet interpreted.
+
+Originals are served only through the authenticated API, never by public R2 URL.
+No deletion/expiry workflow or backup-erasure guarantee exists yet. If a database
+response is lost after a write, the backend deliberately retains the candidate
+blob to avoid deleting a successfully committed original. Before live release,
+orphan reconciliation and the lifecycle tickets must be completed. Use synthetic
+fixtures only. No general sensitive-data detector or compliance claim is made.
+
+The no-account local pilot stores both metadata and originals in ignored SQLite.
+Vite with real Supabase credentials supports sign-in/workspaces only; use the
+Cloudflare preview deployment for the actual R2-backed upload integration.
+
+References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/),
+[Pages R2 bindings](https://developers.cloudflare.com/pages/functions/bindings/#r2-buckets),
+[unpdf / PDF.js integration](https://github.com/unjs/unpdf).

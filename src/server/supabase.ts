@@ -5,13 +5,15 @@ import type {
   Store,
   Workspace,
 } from "./contracts.ts";
+import type { DocumentStore, DocumentRecord } from "./documents.ts";
+import { HttpError } from "./http.ts";
 
 export interface SupabaseConfig {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
 }
 export function supabaseAdapters(config: SupabaseConfig): {
-  store: Store;
+  store: Store & DocumentStore;
   auth: IdentityProvider;
 } {
   async function call(
@@ -56,6 +58,43 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async getDocument(id, ownerId) {
+        const rows = await call(
+          `/rest/v1/folio_documents?id=eq.${eq(id)}&owner_id=eq.${eq(ownerId)}&select=data`,
+        );
+        return rows[0]?.data as DocumentRecord | undefined;
+      },
+      async findUpload(ownerId, requestKey) {
+        const rows = await call(
+          `/rest/v1/folio_documents?owner_id=eq.${eq(ownerId)}&request_key=eq.${eq(requestKey)}&select=data`,
+        );
+        return rows[0]?.data as DocumentRecord | undefined;
+      },
+      async listDocuments(workspaceId, ownerId) {
+        const rows = await call(
+          `/rest/v1/folio_documents?workspace_id=eq.${eq(workspaceId)}&owner_id=eq.${eq(ownerId)}&select=data`,
+        );
+        return rows.map((row: { data: DocumentRecord }) => row.data);
+      },
+      async usage(ownerId) {
+        const rows = await call(
+          `/rest/v1/folio_usage?owner_id=eq.${eq(ownerId)}`,
+        );
+        return rows[0]
+          ? {
+              uploads: rows[0].uploads,
+              processedPages: rows[0].processed_pages,
+              storedBytes: rows[0].stored_bytes,
+            }
+          : { uploads: 0, processedPages: 0, storedBytes: 0 };
+      },
+      async commitUpload(document) {
+        const result = await call("/rest/v1/rpc/folio_commit_upload", "POST", {
+          p_document: document,
+        });
+        if (result.error) throw new HttpError(result.status, result.error);
+        return result.document as DocumentRecord;
+      },
       async putSession(session) {
         await call(
           "/rest/v1/folio_sessions",

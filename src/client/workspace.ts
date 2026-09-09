@@ -1,4 +1,5 @@
 import type { Workspace } from "../server/contracts";
+import { mountDocuments } from "./documents";
 
 export async function mountWorkspace(root: HTMLElement) {
   root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Uploads and live questions require an account. Document processing is not available in this slice yet.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden><div class="section-top"><h1>Your workspaces</h1><button id="signout">Sign out</button></div><form id="create-workspace"><label>Workspace name<input name="name" required maxlength="100" placeholder="e.g. Elm Street project"></label><button class="primary">Create workspace</button></form><div class="workspace-layout"><nav aria-label="Your workspaces" id="workspace-list"></nav><section id="workspace-detail"><h2>Select a workspace</h2><p>Group related documents for your research.</p></section></div></section></main>`;
@@ -58,10 +59,11 @@ export async function mountWorkspace(root: HTMLElement) {
     const title = document.createElement("h2");
     title.textContent = workspace.name;
     const note = document.createElement("p");
-    note.textContent =
-      "This workspace is saved to your account. Document upload and questions are coming in the next implementation slices.";
-    detail.replaceChildren(title, note);
+    note.textContent = "This workspace is saved to your account.";
+    const documents = document.createElement("div");
+    detail.replaceChildren(title, note, documents);
     history.replaceState(null, "", `/app?workspace=${encodeURIComponent(id)}`);
+    await mountDocuments(documents, id, api, signedOut);
   }
   async function loadWorkspaces() {
     const workspaces = await api<Workspace[]>("/workspaces");

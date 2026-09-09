@@ -1,11 +1,13 @@
 import type { IdentityProvider, Store } from "./contracts.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
+import { documentRoute, type DocumentServices } from "./documents.ts";
 
 const SESSION_SECONDS = 24 * 60 * 60;
 export function createApi(deps: {
   store: Store;
   auth: IdentityProvider;
   now?: () => number;
+  documents?: DocumentServices;
 }) {
   const { store, auth } = deps;
   const now = deps.now ?? Date.now;
@@ -127,7 +129,20 @@ export function createApi(deps: {
             await store.putWorkspace(workspace);
           }
           response = json(workspace);
-        } else throw new HttpError(404, "This operation is not available.");
+        } else {
+          const documentResponse = deps.documents
+            ? await documentRoute(
+                request,
+                ownerId,
+                deps.documents,
+                async (id) => Boolean(await store.getWorkspace(id, ownerId)),
+                now(),
+              )
+            : undefined;
+          if (!documentResponse)
+            throw new HttpError(404, "This operation is not available.");
+          response = documentResponse;
+        }
       }
     } catch (error) {
       response =

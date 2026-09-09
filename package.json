@@ -7,6 +7,8 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "predev": "node scripts/generate-fixtures.ts",
+    "prebuild": "node scripts/generate-fixtures.ts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
@@ -17,8 +19,12 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^24.0.0",
+    "pdf-lib": "^1.17.1",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3",
     "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "unpdf": "^1.8.1"
   }
 }
