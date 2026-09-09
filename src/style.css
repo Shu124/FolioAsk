@@ -16,6 +16,48 @@
   --border: #e1e7f0;
   --muted: #637084;
 }
+.answer-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 30px;
+  padding-top: 24px;
+}
+#question-form {
+  display: grid;
+  gap: 12px;
+}
+#question-form textarea,
+#question-form select {
+  width: 100%;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  color: inherit;
+  background: white;
+}
+.saved-answer {
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.saved-answer p {
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+.pdf-surface {
+  position: relative;
+}
+.pdf-surface canvas {
+  display: block;
+}
+.source-highlight {
+  position: absolute;
+  background: #225de040;
+  border: 1px solid #225de0;
+  pointer-events: none;
+  min-height: 3px;
+}
 .upload-section {
   border-top: 1px solid var(--border);
   margin-top: 24px;

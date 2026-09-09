@@ -1,6 +1,7 @@
 import type { IdentityProvider, Store } from "./contracts.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { documentRoute, type DocumentServices } from "./documents.ts";
+import { answerRoute, type AnswerServices } from "./answers.ts";
 
 const SESSION_SECONDS = 24 * 60 * 60;
 export function createApi(deps: {
@@ -8,6 +9,7 @@ export function createApi(deps: {
   auth: IdentityProvider;
   now?: () => number;
   documents?: DocumentServices;
+  answers?: AnswerServices;
 }) {
   const { store, auth } = deps;
   const now = deps.now ?? Date.now;
@@ -130,15 +132,28 @@ export function createApi(deps: {
           }
           response = json(workspace);
         } else {
-          const documentResponse = deps.documents
-            ? await documentRoute(
-                request,
-                ownerId,
-                deps.documents,
-                async (id) => Boolean(await store.getWorkspace(id, ownerId)),
-                now(),
-              )
-            : undefined;
+          const answerResponse =
+            deps.answers && deps.documents
+              ? await answerRoute(
+                  request,
+                  ownerId,
+                  deps.answers,
+                  deps.documents,
+                  async (id) => Boolean(await store.getWorkspace(id, ownerId)),
+                  now(),
+                )
+              : undefined;
+          const documentResponse =
+            answerResponse ??
+            (deps.documents
+              ? await documentRoute(
+                  request,
+                  ownerId,
+                  deps.documents,
+                  async (id) => Boolean(await store.getWorkspace(id, ownerId)),
+                  now(),
+                )
+              : undefined);
           if (!documentResponse)
             throw new HttpError(404, "This operation is not available.");
           response = documentResponse;

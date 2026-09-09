@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:api && npm run test:browser",
     "test:api": "node --test tests/api/*.test.ts",
+    "test:live": "node --env-file-if-exists=.env scripts/smoke-gemini.ts",
     "test:browser": "playwright test"
   },
   "devDependencies": {

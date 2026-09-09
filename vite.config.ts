@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { createApi } from "./src/server/api.ts";
 import { SqliteStore } from "./src/server/sqlite-store.ts";
 import { supabaseAdapters } from "./src/server/supabase.ts";
+import { controlledProvider } from "./tests/fixtures/provider.ts";
+import { freeGemini } from "./src/server/gemini.ts";
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
@@ -21,6 +23,16 @@ export default defineConfig(({ mode }) => {
             store = new SqliteStore(".local/pilot.sqlite");
             api = createApi({
               store,
+              answers: {
+                store,
+                provider:
+                  env.FOLIO_LIVE_SMOKE === "1"
+                    ? env.GEMINI_FREE_API_KEY &&
+                      env.GEMINI_FREE_PROJECT_CONFIRMED === "yes"
+                      ? freeGemini(env.GEMINI_FREE_API_KEY)
+                      : undefined
+                    : controlledProvider,
+              },
               documents: {
                 store,
                 blobs: store,

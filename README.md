@@ -8,9 +8,11 @@ supported document content with clickable citations.
 
 ## Project status
 
-The guided demo, owned workspaces, and controlled text-PDF upload/preview are
-implemented. Live AI answers, subscriptions, and regulatory compliance are not
-available or verified.
+The guided demo, owned workspaces, controlled text-PDF upload/preview, and
+single-document Q&A with citations are implemented. Q&A is verified with simulated
+providers only; the real Gemini check is pending credentials. Subscriptions,
+scans/OCR, and the remaining release features are not implemented yet. Regulatory
+compliance has not been verified.
 
 - [MVP specification: user stories, implementation and testing decisions](docs/mvp-spec.md)
 - [GitHub aggregate issue and 18 child tickets](https://github.com/Shu124/FolioAsk/issues/1)
@@ -140,3 +142,67 @@ Cloudflare preview deployment for the actual R2-backed upload integration.
 References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/),
 [Pages R2 bindings](https://developers.cloudflare.com/pages/functions/bindings/#r2-buckets),
 [unpdf / PDF.js integration](https://github.com/unjs/unpdf).
+
+## Set up Gemini for a controlled real-provider check
+
+1. Open [Google AI Studio](https://aistudio.google.com/) and create an API key in a
+   project eligible for free-tier Gemini usage. Verify the project's billing/quota
+   status; a variable named “FREE” cannot prove that a Google project is unbilled.
+   Do not enable paid billing for this initial test.
+2. In ignored `.env`, set `GEMINI_FREE_API_KEY` and, after checking the project,
+   `GEMINI_FREE_PROJECT_CONFIRMED=yes`. Never put the key in browser code, a
+   `VITE_` variable, Git, screenshots, or chat.
+3. Run `npm run test:live`. This submits only the generated synthetic construction
+   fixture through the real application upload, extraction, retrieval, answer,
+   and citation-validation API path. It uses local storage and simulated identity
+   so this is not a Supabase/R2 deployment test. A missing key exits without making
+   a provider call; a failed provider/answer check exits unsuccessfully.
+4. Inspect the reported PASS/FAIL. One correct answer does **not** establish model
+   accuracy, speed, cost, prompt-injection resistance, or regulatory compliance.
+   The full evaluation and release-gate tickets must still be completed.
+5. To try real Q&A in the local synthetic pilot, additionally set
+   `FOLIO_TEST_MODE=1` and `FOLIO_LIVE_SMOKE=1`, then restart `npm run dev`.
+   Without the live flag, local answers are explicitly labelled simulated.
+   Automated browser tests force simulation even if your local live flag is set.
+6. For a Cloudflare controlled preview, run `003_answers.sql` in Supabase, set the
+   key as a Pages secret and the confirmation flag as a server variable, retain
+   the exact reviewed-file allowlist, and redeploy. Removing the key/confirmation
+   pauses new answers while saved content remains readable.
+
+The current adapter pins `gemini-2.5-flash` and `gemini-embedding-001` (768
+dimensions). It has no paid fallback. Availability/quota failures preserve the
+question and successful-answer allowance. Verify those models and free terms in
+your project before the check; provider offerings may change.
+
+Embeddings are generated once per document/model version and persisted as private
+JSON vectors. For the current three-file pilot, cosine retrieval runs over those
+owned chunks in the backend; this is **not** a pgvector index. Future scale/cost
+validation may justify moving retrieval into pgvector. Answers and exact citation
+references are saved atomically with the 20-answer lifetime meter. Successful
+“not found” responses count; provider errors and invalid citation references do not.
+The server checks cited IDs and quote substrings, not semantic truth—users must
+still verify the highlighted source. Documents never authorize tools or access.
+
+References: [Gemini API keys](https://ai.google.dev/gemini-api/docs/api-key),
+[models](https://ai.google.dev/gemini-api/docs/models),
+[embeddings](https://ai.google.dev/gemini-api/docs/embeddings),
+[structured output](https://ai.google.dev/gemini-api/docs/structured-output),
+[current pricing/free-tier terms](https://ai.google.dev/gemini-api/docs/pricing).
+
+## Implementation progress and remaining work
+
+- [#2](https://github.com/Shu124/FolioAsk/issues/2),
+  [#3](https://github.com/Shu124/FolioAsk/issues/3), and
+  [#4](https://github.com/Shu124/FolioAsk/issues/4): implemented, reviewed, fixed,
+  tested locally, and pushed to the feature branch. Live infrastructure settings
+  still need the deployment checks above.
+- [#5](https://github.com/Shu124/FolioAsk/issues/5): Q&A implementation and
+  deterministic tests exist; the required real-provider check is not yet run.
+- Tickets [#6–#19](https://github.com/Shu124/FolioAsk/issues/1) remain. Do not treat
+  this branch as the finished MVP or enable unrestricted uploads/private files.
+
+No Stripe account or payment key is needed yet: checkout remains disabled. OCR,
+cross-document comparisons, checked arithmetic, streaming controls, exports,
+deletion/retention, paid entitlements, analytics, quality evaluation, and verified
+free/paid releases are later tickets. Their setup instructions will accompany their
+implementation rather than implying those integrations already work.

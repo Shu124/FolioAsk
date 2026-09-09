@@ -1,6 +1,12 @@
 import type { DocumentRecord } from "../server/documents";
+import type { Citation } from "../server/answers";
+import { mountAnswers } from "./answers";
 
-type Api = <T>(path: string, method?: string, data?: unknown) => Promise<T>;
+export type Api = <T>(
+  path: string,
+  method?: string,
+  data?: unknown,
+) => Promise<T>;
 export function mountDocuments(
   root: HTMLElement,
   workspaceId: string,
@@ -19,10 +25,20 @@ export function mountDocuments(
   let activeUpload: XMLHttpRequest | undefined;
   let activeDownload: AbortController | undefined;
   let releasePdf = () => {};
+  const answerRoot = document.createElement("div");
+  root.append(answerRoot);
+  const answers = mountAnswers(
+    answerRoot,
+    workspaceId,
+    api,
+    async (citation) => {
+      await openDocument(citation.documentId, citation);
+    },
+  );
   input.onchange = () => {
     retryKey = crypto.randomUUID();
   };
-  async function openDocument(id: string) {
+  async function openDocument(id: string, citation?: Citation) {
     if (disposed) return;
     const current = ++sequence;
     activeDownload?.abort();
@@ -61,16 +77,19 @@ export function mountDocuments(
         const label = documentNode("span", "");
         pager.append(previous, label, next);
         const canvas = documentNode("canvas", "");
+        const surface = documentNode("div", "");
+        surface.className = "pdf-surface";
+        surface.append(canvas);
         const text = documentNode("pre", "");
         text.className = "extracted-text";
         preview.append(
           title,
           pager,
-          canvas,
+          surface,
           documentNode("h4", "Extracted page text"),
           text,
         );
-        let pageNumber = 1;
+        let pageNumber = citation?.page ?? 1;
         async function renderPage() {
           if (disposed || current !== sequence) return;
           previous.disabled = true;
@@ -86,9 +105,39 @@ export function mountDocuments(
             await task.promise;
             if (disposed || current !== sequence) return;
             label.textContent = `Page ${pageNumber} of ${pdf.numPages}`;
-            text.textContent = document.pages[pageNumber - 1].passages
-              .map((passage) => passage.text)
-              .join("\n");
+            text.replaceChildren();
+            surface.querySelector(".source-highlight")?.remove();
+            for (const passage of document.pages[pageNumber - 1].passages) {
+              const highlighted =
+                citation?.page === pageNumber &&
+                citation.passageId === passage.id;
+              text.append(
+                documentNode(highlighted ? "mark" : "span", passage.text),
+                "\n",
+              );
+              if (highlighted) {
+                const highlight = documentNode("div", "");
+                highlight.className = "source-highlight";
+                highlight.setAttribute(
+                  "aria-label",
+                  "Highlighted source passage",
+                );
+                highlight.setAttribute("role", "img");
+                const pageData = document.pages[pageNumber - 1];
+                const box = passage.box;
+                Object.assign(highlight.style, {
+                  left: `${(box.x / pageData.width) * 100}%`,
+                  top: `${(box.y / pageData.height) * 100}%`,
+                  width: `${(box.width / pageData.width) * 100}%`,
+                  height: `${(box.height / pageData.height) * 100}%`,
+                });
+                surface.append(highlight);
+                highlight.scrollIntoView({
+                  block: "center",
+                  behavior: "instant",
+                });
+              }
+            }
             status.textContent = `Ready · ${pdf.numPages} ${pdf.numPages === 1 ? "page" : "pages"}`;
           } catch {
             if (disposed || current !== sequence) return;
@@ -133,6 +182,7 @@ export function mountDocuments(
       button.onclick = () => void openDocument(document.id);
       buttons.append(button);
     }
+    answers.setDocuments(documents);
   }
   form.onsubmit = (event) => {
     event.preventDefault();
@@ -199,9 +249,10 @@ export function mountDocuments(
     xhr.send(file);
   };
   return {
-    ready: refresh(),
+    ready: Promise.all([refresh(), answers.refresh()]).then(() => {}),
     dispose() {
       disposed = true;
+      answers.dispose();
       sequence++;
       activeUpload?.abort();
       activeDownload?.abort();

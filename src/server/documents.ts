@@ -26,6 +26,7 @@ export interface DocumentRecord {
   classification: "public-approved";
 }
 export interface Usage {
+  answers: number;
   uploads: number;
   processedPages: number;
   storedBytes: number;
@@ -170,6 +171,7 @@ export async function documentRoute(
     return json({
       ...usage,
       uploadsRemaining: Math.max(0, 3 - usage.uploads),
+      answersRemaining: Math.max(0, 20 - usage.answers),
       uploadLimit: 3,
     });
   }

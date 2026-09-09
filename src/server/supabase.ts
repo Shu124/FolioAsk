@@ -7,13 +7,14 @@ import type {
 } from "./contracts.ts";
 import type { DocumentStore, DocumentRecord } from "./documents.ts";
 import { HttpError } from "./http.ts";
+import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 
 export interface SupabaseConfig {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
 }
 export function supabaseAdapters(config: SupabaseConfig): {
-  store: Store & DocumentStore;
+  store: Store & DocumentStore & AnswerStore;
   auth: IdentityProvider;
 } {
   async function call(
@@ -58,6 +59,44 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async findAnswer(ownerId, requestKey) {
+        const rows = await call(
+          `/rest/v1/folio_answers?owner_id=eq.${eq(ownerId)}&request_key=eq.${eq(requestKey)}&select=data`,
+        );
+        return rows[0]?.data as AnswerRecord | undefined;
+      },
+      async listAnswers(ownerId, workspaceId) {
+        const rows = await call(
+          `/rest/v1/folio_answers?owner_id=eq.${eq(ownerId)}&workspace_id=eq.${eq(workspaceId)}&select=data&order=created_at.asc`,
+        );
+        return rows.map((row: { data: AnswerRecord }) => row.data);
+      },
+      async getIndex(documentId, ownerId, indexKey) {
+        const rows = await call(
+          `/rest/v1/folio_embeddings?document_id=eq.${eq(documentId)}&owner_id=eq.${eq(ownerId)}&index_key=eq.${eq(indexKey)}&select=data`,
+        );
+        return rows[0]?.data as IndexedChunk[] | undefined;
+      },
+      async putIndex(documentId, ownerId, indexKey, chunks) {
+        await call(
+          "/rest/v1/folio_embeddings?on_conflict=document_id,index_key",
+          "POST",
+          {
+            document_id: documentId,
+            owner_id: ownerId,
+            index_key: indexKey,
+            data: chunks,
+          },
+          { Prefer: "resolution=merge-duplicates,return=representation" },
+        );
+      },
+      async commitAnswer(answer) {
+        const result = await call("/rest/v1/rpc/folio_commit_answer", "POST", {
+          p_answer: answer,
+        });
+        if (result.error) throw new HttpError(result.status, result.error);
+        return result.answer as AnswerRecord;
+      },
       async getDocument(id, ownerId) {
         const rows = await call(
           `/rest/v1/folio_documents?id=eq.${eq(id)}&owner_id=eq.${eq(ownerId)}&select=data`,
@@ -83,10 +122,11 @@ export function supabaseAdapters(config: SupabaseConfig): {
         return rows[0]
           ? {
               uploads: rows[0].uploads,
+              answers: rows[0].answers ?? 0,
               processedPages: rows[0].processed_pages,
               storedBytes: rows[0].stored_bytes,
             }
-          : { uploads: 0, processedPages: 0, storedBytes: 0 };
+          : { uploads: 0, processedPages: 0, storedBytes: 0, answers: 0 };
       },
       async commitUpload(document) {
         const result = await call("/rest/v1/rpc/folio_commit_upload", "POST", {
