@@ -21,6 +21,45 @@
   margin-top: 30px;
   padding-top: 24px;
 }
+@media (min-width: 1100px) {
+  .account-page {
+    max-width: 1440px;
+  }
+  .workspace-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .evidence-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .evidence-workspace .upload-section {
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    min-width: 0;
+  }
+  .evidence-workspace > div {
+    min-width: 0;
+    position: sticky;
+    top: 20px;
+  }
+  .evidence-workspace .answer-panel {
+    margin: 0;
+    padding: 0 0 0 20px;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+  #upload-form label {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 200px;
+  }
+  #upload-form input {
+    min-width: 0;
+  }
+}
 #question-form {
   display: grid;
   gap: 12px;

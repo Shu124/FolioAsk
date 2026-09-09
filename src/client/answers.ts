@@ -17,6 +17,12 @@ export function mountAnswers(
   const history = root.querySelector<HTMLElement>("#answer-history")!;
   let requestKey = crypto.randomUUID();
   let disposed = false;
+  let pending = false;
+  function updateControls() {
+    button.disabled = pending || disposed || selection.options.length === 0;
+    question.disabled = pending || disposed;
+    selection.disabled = pending || disposed;
+  }
   question.oninput = () => {
     requestKey = crypto.randomUUID();
   };
@@ -63,9 +69,9 @@ export function mountAnswers(
   }
   form.onsubmit = (event) => {
     event.preventDefault();
-    button.disabled = true;
-    question.disabled = true;
-    selection.disabled = true;
+    if (pending || disposed || !selection.value) return;
+    pending = true;
+    updateControls();
     status.textContent = "Retrieving evidence and asking the model…";
     void (async () => {
       try {
@@ -87,9 +93,8 @@ export function mountAnswers(
               ? error.message
               : "Could not answer. Your draft is preserved.";
       } finally {
-        button.disabled = false;
-        question.disabled = false;
-        selection.disabled = false;
+        pending = false;
+        updateControls();
       }
     })();
   };
@@ -109,7 +114,7 @@ export function mountAnswers(
       }
       if (documents.some((document) => document.id === previous))
         selection.value = previous;
-      button.disabled = !documents.length;
+      updateControls();
     },
   };
 }

@@ -13,6 +13,7 @@ export function mountDocuments(
   api: Api,
   onUnauthorized: () => void,
 ) {
+  root.classList.add("evidence-workspace");
   root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet">Controlled pilot: public, non-sensitive, operator-approved fixtures only. No patient records, confidential files or specially regulated data. A checkbox is not proof of eligibility.</p><a href="/fixtures/contract.pdf" download class="citation">Download synthetic test PDF</a><p id="upload-usage"></p><form id="upload-form"><label>Choose PDF<input type="file" accept="application/pdf" required></label><button class="primary" type="submit">Upload PDF</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
   const status = root.querySelector<HTMLElement>("#upload-status")!;
   const form = root.querySelector<HTMLFormElement>("#upload-form")!;

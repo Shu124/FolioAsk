@@ -9,6 +9,8 @@ export const controlledProvider: ModelProvider = {
     return texts.map(() => [1, 0]);
   },
   async answer(question, evidence) {
+    if (question.includes("[slow fixture]"))
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     const source = evidence.find(
       (item) => item.text === "Shop drawings are due within 14 calendar days.",
     );
