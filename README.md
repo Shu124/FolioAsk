@@ -230,6 +230,40 @@ deletion/retention, paid entitlements, analytics, quality evaluation, and verifi
 free/paid releases are later tickets. Their setup instructions will accompany their
 implementation rather than implying those integrations already work.
 
+# Project experience and settings
+
+After signing in, name your first project. Returning users open an existing
+project automatically. Use the project selector to switch, and the sidebar to
+open Dashboard, Documents, Chat, or Settings.
+
+- **Documents:** upload an approved synthetic PDF and inspect its original pages.
+- **Chat:** select a document, ask a question, or start a New chat. A conversation
+  is saved with its first successful answer. Dashboard reopens saved conversations.
+  Follow-ups use at most four previous turns (up to 1,000 question and 2,000 answer
+  characters each); only the selected document can support citations. Older saved
+  answers appear as individual conversations and can be continued.
+- **Settings:** save your display name, rename the current project, inspect actual
+  usage, and choose Light, Dark or System. Appearance is remembered on this browser,
+  not synced between devices; original PDF pages retain their colors.
+- **Password:** email accounts can change their password after entering the current
+  password. Successful changes revoke all FolioAsk sessions. Google-only accounts
+  manage their password with Google. A self-service forgotten-password email flow
+  is not included in this release.
+
+These features reuse the existing Supabase tables and JSON answer records: no new
+SQL migration is required beyond the existing setup migrations. Profile names are
+stored in Supabase Auth user metadata; never use that metadata for authorization.
+The local `FOLIO_TEST_MODE=1` identity service is a simulation, including Google;
+fixture profile/password changes reset when that development server restarts.
+
+Restart with `npm run dev` after changing environment variables. For a production
+Cloudflare deployment, rebuild/redeploy after pushing; a Git push alone does not
+prove that the live site is updated. Live document uploads require the R2 binding
+and approved-file configuration described below. If local Supabase-only development
+has no document service configured, settings report usage unavailable rather than
+inventing quota numbers. No paid subscription or regulatory-compliance certification
+is introduced by this UI upgrade.
+
 # Google sign-in setup
 
 Google sign-in uses Supabase with PKCE; FolioAsk exchanges the authorization code

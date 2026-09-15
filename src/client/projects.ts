@@ -1,5 +1,7 @@
 import type { Workspace } from "../server/contracts";
 import { mountDocuments, type Api } from "./documents";
+import { mountTheme } from "./theme";
+import { mountSettings } from "./settings";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
 const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
@@ -7,7 +9,7 @@ const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
 export function mountProjects(
   root: HTMLElement,
   api: Api,
-  signedOut: () => void,
+  signedOut: (message?: string) => void,
 ) {
   root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label>Current project<select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
@@ -22,6 +24,15 @@ export function mountProjects(
   dashboard.append(recent);
   const evidence = root.querySelector<HTMLElement>("#project-evidence")!;
   const settings = root.querySelector<HTMLElement>("#project-settings")!;
+  settings.innerHTML = "<h2>Settings</h2>";
+  const appearance = document.createElement("section");
+  settings.append(appearance);
+  const shortcut = document.createElement("button");
+  root.querySelector(".project-sidebar")!.append(shortcut);
+  const disposeTheme = mountTheme(appearance, shortcut);
+  const accountSettings = document.createElement("div");
+  settings.append(accountSettings);
+  let settingsView: ReturnType<typeof mountSettings> | undefined;
   const nav = root.querySelector<HTMLElement>("nav")!;
   const form = root.querySelector<HTMLFormElement>("#project-form")!;
   let projects: Workspace[] = [];
@@ -42,6 +53,7 @@ export function mountProjects(
     dashboard.hidden = view !== "Dashboard";
     evidence.hidden = view !== "Documents" && view !== "Chat";
     settings.hidden = view !== "Settings";
+    if (view === "Settings") void settingsView?.refreshUsage();
     // Chat retains the source beside it for citation inspection and ongoing uploads.
     documentView?.show(view === "Documents" ? "documents" : "chat");
     for (const button of controls) {
@@ -73,6 +85,8 @@ export function mountProjects(
   async function open(id: string) {
     const revision = ++sequence;
     documentView?.dispose();
+    settingsView?.dispose();
+    settingsView = undefined;
     documentView = undefined;
     evidence.replaceChildren();
     recent.replaceChildren();
@@ -91,6 +105,24 @@ export function mountProjects(
     selector.value = project.id;
     onboarding.hidden = true;
     main.hidden = false;
+    settingsView = mountSettings(
+      accountSettings,
+      project,
+      api,
+      (name) => {
+        if (disposed || revision !== sequence) return;
+        project.name = name;
+        title.textContent = name;
+        const entry = projects.find((item) => item.id === project.id);
+        if (entry) entry.name = name;
+        updateSelector();
+        selector.value = project.id;
+      },
+      (message) => {
+        signedOut(message);
+        history.replaceState(null, "", "/app");
+      },
+    );
     // Commit the project URL before the chat reads its conversation selection.
     show(activeView);
     documentView = mountDocuments(
@@ -188,6 +220,8 @@ export function mountProjects(
     ready,
     dispose() {
       disposed = true;
+      disposeTheme();
+      settingsView?.dispose();
       sequence++;
       documentView?.dispose();
       root.replaceChildren();

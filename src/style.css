@@ -16,6 +16,86 @@
   --border: #e1e7f0;
   --muted: #637084;
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e4eaf5;
+  background: #111827;
+  --border: #354258;
+  --muted: #a5b3c8;
+  --blue: #91b6ff;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"]
+  :is(
+    #signin,
+    button,
+    input,
+    select,
+    textarea,
+    .chat-panel,
+    .panel-bar,
+    #workspace-detail
+  ) {
+  background: #1c2739;
+  color: inherit;
+}
+:root[data-theme="dark"]
+  :is(
+    .document-list,
+    .source-panel,
+    .question-bubble,
+    .file-card,
+    #account-status:not(:empty)
+  ) {
+  background: #202e44;
+}
+:root[data-theme="dark"] :is(.primary, button.primary) {
+  background: #91b6ff;
+  color: #101b30;
+}
+:root[data-theme="dark"]
+  :is(
+    [aria-current="page"],
+    .sector-tabs [aria-pressed="true"],
+    .demo-view-controls [aria-pressed="true"]
+  ) {
+  background: #263e66;
+  color: #c2d6ff;
+}
+.paper {
+  color: #202c3c;
+  --muted: #637084;
+  --border: #e1e7f0;
+  --blue: #225de0;
+  color-scheme: light;
+}
+.pdf-surface {
+  background: white;
+  color-scheme: light;
+}
+.project-sidebar > button {
+  display: block;
+  margin-top: 8px;
+  width: 100%;
+}
+#project-settings section {
+  padding: 24px;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+#project-settings form {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+#project-settings select {
+  padding: 12px;
+  border-radius: 6px;
+  font: inherit;
+}
 .account-page:has(#signin:not([hidden])) {
   max-width: 620px;
   margin: 48px auto;
@@ -93,6 +173,10 @@
 }
 .project-content {
   min-width: 0;
+}
+#project-title,
+#profile-email {
+  overflow-wrap: anywhere;
 }
 .recent-conversations {
   display: grid;

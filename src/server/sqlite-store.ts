@@ -51,6 +51,13 @@ export class SqliteStore
   async deleteSession(hash: string) {
     this.db.prepare("DELETE FROM sessions WHERE hash = ?").run(hash);
   }
+  async deleteAccountSessions(ownerId: string) {
+    this.db
+      .prepare(
+        "DELETE FROM sessions WHERE json_extract(data, '$.account.id') = ?",
+      )
+      .run(ownerId);
+  }
   async listWorkspaces(ownerId: string): Promise<Workspace[]> {
     return this.db
       .prepare(

@@ -1,4 +1,5 @@
 import "./style.css";
+import "./client/theme";
 import { samples, type SampleKey } from "./samples";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;

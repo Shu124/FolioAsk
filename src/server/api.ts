@@ -1,5 +1,6 @@
 import type { Account, IdentityProvider, Store } from "./contracts.ts";
 import { googleAuth } from "./google-auth.ts";
+import { accountRoute } from "./account.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { documentRoute, type DocumentServices } from "./documents.ts";
 import { answerRoute, type AnswerServices } from "./answers.ts";
@@ -102,7 +103,14 @@ export function createApi(deps: {
         if (!session || session.expiresAt <= now())
           throw new HttpError(401, "Sign in to access your workspace.");
         const ownerId = session.account.id;
-        if (path === "/session" && method === "GET")
+        const accountResponse = await accountRoute(
+          request,
+          session.account,
+          auth,
+          store,
+        );
+        if (accountResponse) response = accountResponse;
+        else if (path === "/session" && method === "GET")
           response = json({ email: session.account.email });
         else if (path === "/session" && method === "DELETE") {
           await store.deleteSession(hash);

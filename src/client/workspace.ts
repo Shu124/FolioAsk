@@ -97,12 +97,13 @@ export async function mountWorkspace(root: HTMLElement) {
   signin.hidden = true;
   status.textContent = "Restoring session…";
   let disposeProjects = () => {};
-  function signedOut() {
+  function signedOut(message?: string) {
     disposeProjects();
     disposeProjects = () => {};
     signin.hidden = false;
     home.hidden = true;
     home.replaceChildren();
+    if (message) status.textContent = message;
   }
   async function api<T>(
     path: string,

@@ -43,6 +43,44 @@ export function supabaseAdapters(config: SupabaseConfig): {
   const eq = encodeURIComponent;
   return {
     auth: {
+      async account(id) {
+        const result = await call(`/auth/v1/admin/users/${eq(id)}`);
+        const user = result.user ?? result;
+        if (user.id !== id || typeof user.email !== "string")
+          throw new Error("Invalid account");
+        return {
+          id,
+          email: user.email,
+          name:
+            user.user_metadata?.display_name ??
+            user.user_metadata?.full_name ??
+            "",
+          providers: user.app_metadata?.providers ?? [],
+        };
+      },
+      async updateName(id, name) {
+        await call(`/auth/v1/admin/users/${eq(id)}`, "PUT", {
+          user_metadata: { display_name: name },
+        });
+      },
+      async changePassword(account, currentPassword, password) {
+        const session = await call(
+          "/auth/v1/token?grant_type=password",
+          "POST",
+          { email: account.email, password: currentPassword },
+        );
+        if (
+          session.user?.id !== account.id ||
+          typeof session.access_token !== "string"
+        )
+          throw new Error("Invalid credentials");
+        await call(
+          "/auth/v1/user",
+          "PUT",
+          { password, current_password: currentPassword },
+          { Authorization: `Bearer ${session.access_token}` },
+        );
+      },
       async googleUrl(redirect, challenge) {
         const settings = await call("/auth/v1/settings");
         if (!settings.external?.google) throw new Error("Google is disabled");
@@ -83,6 +121,12 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async deleteAccountSessions(ownerId) {
+        await call(
+          `/rest/v1/folio_sessions?owner_id=eq.${eq(ownerId)}`,
+          "DELETE",
+        );
+      },
       async findAnswer(ownerId, requestKey) {
         const rows = await call(
           `/rest/v1/folio_answers?owner_id=eq.${eq(ownerId)}&request_key=eq.${eq(requestKey)}&select=data`,

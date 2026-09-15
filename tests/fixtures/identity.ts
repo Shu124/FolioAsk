@@ -3,15 +3,40 @@ import { createHash } from "node:crypto";
 
 /** Loopback-only external identity simulation; never imported by production. */
 export function controlledIdentity(): IdentityProvider {
+  const profiles = new Map<
+    string,
+    { name: string; password: string; providers: string[] }
+  >();
+  const profile = (id: string) => {
+    if (!profiles.has(id))
+      profiles.set(id, {
+        name: "",
+        password: "local-test-password",
+        providers: ["email"],
+      });
+    return profiles.get(id)!;
+  };
   const codes = new Map<
     string,
     { challenge: string; expires: number; email: string }
   >();
   return {
+    async account(id) {
+      const value = profile(id);
+      return { id, email: id, name: value.name, providers: value.providers };
+    },
+    async updateName(id, name) {
+      profile(id).name = name;
+    },
+    async changePassword(account, currentPassword, password) {
+      const value = profile(account.id);
+      if (value.password !== currentPassword) throw new Error("Wrong password");
+      value.password = password;
+    },
     async signIn(email, password) {
       if (
         !email.endsWith("@example.test") ||
-        password !== "local-test-password"
+        password !== profile(email).password
       )
         throw new Error("Invalid fixture credentials");
       return { id: email, email };
@@ -42,6 +67,7 @@ export function controlledIdentity(): IdentityProvider {
           value.challenge
       )
         throw new Error("Invalid code");
+      profile(value.email).providers = ["google"];
       return { id: value.email, email: value.email };
     },
   };
