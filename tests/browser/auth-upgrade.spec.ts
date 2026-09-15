@@ -55,12 +55,12 @@ test("Google callback creates a session that survives reload and can sign out", 
   await page.goto("/app");
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your workspaces" }),
+    page.getByRole("heading", { name: "Name your first project" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/app$/);
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Your workspaces" }),
+    page.getByRole("heading", { name: "Name your first project" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(

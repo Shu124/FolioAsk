@@ -12,8 +12,12 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByLabel("Workspace name").fill("Upload journey");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByLabel("Project name").fill("Upload journey");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page
+    .getByRole("navigation", { name: "Project navigation" })
+    .getByRole("button", { name: "Chat", exact: true })
+    .click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",

@@ -250,6 +250,10 @@ export function mountDocuments(
     xhr.send(file);
   };
   return {
+    show(view: "documents" | "chat") {
+      answerRoot.hidden = view === "documents";
+      root.dataset.view = view;
+    },
     ready: Promise.all([refresh(), answers.refresh()]).then(() => {}),
     dispose() {
       disposed = true;

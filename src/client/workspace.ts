@@ -1,5 +1,4 @@
-import type { Workspace } from "../server/contracts";
-import { mountDocuments } from "./documents";
+import { mountProjects } from "./projects";
 import { passwordVisibility } from "./password-field";
 
 export async function mountWorkspace(root: HTMLElement) {
@@ -9,12 +8,10 @@ export async function mountWorkspace(root: HTMLElement) {
   const callbackState = callback.searchParams.get("state");
   // Remove provider codes before any further navigation or requests.
   if (googleCallback) history.replaceState(null, "", "/app");
-  root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Sign in to upload approved synthetic PDFs and inspect source-backed answers. Live AI requires operator configuration; private and sensitive files remain excluded.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden><div class="section-top"><h1>Your workspaces</h1><button id="signout">Sign out</button></div><form id="create-workspace"><label>Workspace name<input name="name" required maxlength="100" placeholder="e.g. Elm Street project"></label><button class="primary">Create workspace</button></form><div class="workspace-layout"><nav aria-label="Your workspaces" id="workspace-list"></nav><section id="workspace-detail"><h2>Select a workspace</h2><p>Group related documents for your research.</p></section></div></section></main>`;
+  root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Sign in to upload approved synthetic PDFs and inspect source-backed answers. Live AI requires operator configuration; private and sensitive files remain excluded.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden></section></main>`;
   const status = root.querySelector<HTMLElement>("#account-status")!;
   const signin = root.querySelector<HTMLElement>("#signin")!;
   const home = root.querySelector<HTMLElement>("#workspace-home")!;
-  const detail = root.querySelector<HTMLElement>("#workspace-detail")!;
-  const list = root.querySelector<HTMLElement>("#workspace-list")!;
   const loginForm = root.querySelector<HTMLFormElement>("#signin-form")!;
   const authHeading = signin.querySelector("h1")!;
   const passwordInput =
@@ -99,16 +96,13 @@ export async function mountWorkspace(root: HTMLElement) {
   );
   signin.hidden = true;
   status.textContent = "Restoring session…";
-  let disposeDocuments = () => {};
-  let workspaceSequence = 0;
+  let disposeProjects = () => {};
   function signedOut() {
-    workspaceSequence++;
-    disposeDocuments();
-    disposeDocuments = () => {};
+    disposeProjects();
+    disposeProjects = () => {};
     signin.hidden = false;
     home.hidden = true;
-    detail.replaceChildren();
-    list.replaceChildren();
+    home.replaceChildren();
   }
   async function api<T>(
     path: string,
@@ -145,38 +139,13 @@ export async function mountWorkspace(root: HTMLElement) {
       buttons.forEach((button) => (button.disabled = false));
     }
   }
-  async function openWorkspace(id: string) {
-    const current = ++workspaceSequence;
-    const workspace = await api<Workspace>(
-      `/workspaces/${encodeURIComponent(id)}`,
-    );
-    if (current !== workspaceSequence) return;
-    disposeDocuments();
-    const title = document.createElement("h2");
-    title.textContent = workspace.name;
-    const note = document.createElement("p");
-    note.textContent = "This workspace is saved to your account.";
-    const documents = document.createElement("div");
-    detail.replaceChildren(title, note, documents);
-    history.replaceState(null, "", `/app?workspace=${encodeURIComponent(id)}`);
-    const view = mountDocuments(documents, id, api, signedOut);
-    disposeDocuments = view.dispose;
-    await view.ready;
-  }
   async function loadWorkspaces() {
-    const workspaces = await api<Workspace[]>("/workspaces");
     signin.hidden = true;
     home.hidden = false;
-    list.replaceChildren();
-    for (const workspace of workspaces) {
-      const button = document.createElement("button");
-      button.textContent = workspace.name;
-      button.onclick = () => void action(() => openWorkspace(workspace.id));
-      list.append(button);
-    }
-    if (!workspaces.length) list.textContent = "No workspaces yet.";
-    const selected = new URL(location.href).searchParams.get("workspace");
-    if (selected) await openWorkspace(selected);
+    disposeProjects();
+    const projects = mountProjects(home, api, signedOut);
+    disposeProjects = projects.dispose;
+    await projects.ready;
   }
   loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -207,29 +176,6 @@ export async function mountWorkspace(root: HTMLElement) {
     status.textContent = "";
     loginForm.querySelector<HTMLInputElement>('[name="email"]')!.focus();
   });
-  root.querySelector("#signout")!.addEventListener(
-    "click",
-    () =>
-      void action(async () => {
-        await api("/session", "DELETE");
-        signedOut();
-        history.replaceState(null, "", "/app");
-      }),
-  );
-  root
-    .querySelector<HTMLFormElement>("#create-workspace")!
-    .addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = event.currentTarget as HTMLFormElement;
-      void action(async () => {
-        const workspace = await api<Workspace>("/workspaces", "POST", {
-          name: new FormData(form).get("name"),
-        });
-        form.reset();
-        history.replaceState(null, "", `/app?workspace=${workspace.id}`);
-        await loadWorkspaces();
-      });
-    });
   try {
     if (googleCallback) {
       if (!callbackCode)

@@ -11,8 +11,8 @@ test("sign in, create and reopen an owned workspace, then sign out", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByLabel("Workspace name").fill("Elm Street");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByLabel("Project name").fill("Elm Street");
+  await page.getByRole("button", { name: "Create project" }).click();
   await expect(
     page.getByRole("heading", { name: "Elm Street", exact: true }),
   ).toBeVisible();
@@ -39,8 +39,8 @@ test("a second browser account cannot open or rename the first account workspace
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByLabel("Workspace name").fill("Private project title");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByLabel("Project name").fill("Private project title");
+  await page.getByRole("button", { name: "Create project" }).click();
   await expect(
     page.getByRole("heading", { name: "Private project title" }),
   ).toBeVisible();
