@@ -40,4 +40,8 @@ test("first project onboarding leads to persistent sidebar navigation", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("project-dashboard.png"),
+    fullPage: true,
+  });
 });

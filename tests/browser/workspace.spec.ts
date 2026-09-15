@@ -57,7 +57,9 @@ test("a second browser account cannot open or rename the first account workspace
       .getByLabel("Password", { exact: true })
       .fill("local-test-password");
     await bob.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(bob.getByRole("status")).toHaveText("Workspace not found.");
+    await expect(
+      bob.getByRole("status", { name: "Project status" }),
+    ).toHaveText("Workspace not found.");
     await expect(
       bob.getByText("Private project title", { exact: true }),
     ).toHaveCount(0);

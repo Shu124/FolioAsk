@@ -11,6 +11,7 @@ export function mountProjects(
 ) {
   root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label>Current project<select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
+  status.setAttribute("aria-label", "Project status");
   const selector = root.querySelector<HTMLSelectElement>("#project-selector")!;
   const onboarding = root.querySelector<HTMLElement>("#project-onboarding")!;
   const main = root.querySelector<HTMLElement>("#project-main")!;
@@ -71,9 +72,13 @@ export function mountProjects(
     evidence.replaceChildren();
     current = undefined;
     main.hidden = true;
-    const project = await api<Workspace>(
-      `/workspaces/${encodeURIComponent(id)}`,
-    );
+    let project: Workspace;
+    try {
+      project = await api<Workspace>(`/workspaces/${encodeURIComponent(id)}`);
+    } catch (error) {
+      if (disposed || revision !== sequence) return;
+      throw error;
+    }
     if (disposed || revision !== sequence) return;
     current = project;
     title.textContent = project.name;
