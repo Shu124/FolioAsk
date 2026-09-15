@@ -35,9 +35,6 @@ export function mountAnswers(
     const url = new URL(location.href);
     if (threadId) url.searchParams.set("thread", threadId);
     else url.searchParams.delete("thread");
-    historyReplace(url);
-  }
-  function historyReplace(url: URL) {
     window.history.replaceState(null, "", url.pathname + url.search);
   }
   function openConversation(id?: string) {
@@ -141,10 +138,11 @@ export function mountAnswers(
         if (disposed) return;
         threadId = saved.threadId ?? saved.id;
         rememberThread();
-        await refresh();
-        if (disposed) return;
+        // The write succeeded even if a subsequent history read fails.
         question.value = "";
         requestKey = crypto.randomUUID();
+        await refresh();
+        if (disposed) return;
         status.textContent =
           "Answer saved. Inspect its sources below the answer.";
       } catch (error) {

@@ -18,13 +18,11 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .click();
   const nav = page.getByRole("navigation", { name: "Project navigation" });
   await nav.getByRole("button", { name: "Chat", exact: true }).click();
-  await page
-    .getByLabel("Choose PDF")
-    .setInputFiles({
-      name: "contract.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await samplePdf()),
-    });
+  await page.getByLabel("Choose PDF").setInputFiles({
+    name: "contract.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await samplePdf()),
+  });
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByLabel("Your question").fill("When are shop drawings due?");
@@ -50,4 +48,22 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .first()
     .click();
   await expect(page.getByLabel("Highlighted source passage")).toBeVisible();
+  let failRead = true;
+  await page.route("**/api/workspaces/*/answers", async (route) => {
+    if (route.request().method() === "GET" && failRead) {
+      failRead = false;
+      await route.abort();
+    } else await route.continue();
+  });
+  await page
+    .getByLabel("Your question")
+    .fill("Shop drawings follow-up with a failed history read");
+  await page.getByRole("button", { name: "Ask selected document" }).click();
+  await expect(page.getByLabel("Your question")).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Ask selected document" }),
+  ).toBeEnabled();
+  await page.getByLabel("Your question").fill("A new shop drawings question");
+  await page.getByRole("button", { name: "Ask selected document" }).click();
+  await expect(page.locator(".saved-answer")).toHaveCount(4);
 });

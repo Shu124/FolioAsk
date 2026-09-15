@@ -21,6 +21,24 @@ test("conversations persist, isolate follow-up context, and preserve retry ident
       const source = evidence.find((item) =>
         item.text.includes("14 calendar days"),
       )!;
+      if (question.startsWith("LONG"))
+        return {
+          status: "answered",
+          claims: Array.from({ length: 3 }, () => ({
+            text: "x".repeat(1500),
+            citations: [{ id: source.id, quote: source.text }],
+          })),
+        };
+      if (question === "Report context limits")
+        return {
+          status: "answered",
+          claims: [
+            {
+              text: `${history.length}:${history[0].question.length}:${history[0].text.length}`,
+              citations: [{ id: source.id, quote: source.text }],
+            },
+          ],
+        };
       return {
         status: "answered",
         claims: [
@@ -139,17 +157,110 @@ test("conversations persist, isolate follow-up context, and preserve retry ident
     const other = await (
       await call("/workspaces", "POST", { name: "Other" }, cookie)
     ).json();
+    const upload = async (projectId: string, ownerCookie: string) =>
+      (
+        await api(
+          new Request(
+            `http://localhost/api/workspaces/${projectId}/documents?name=contract.pdf`,
+            {
+              method: "POST",
+              headers: {
+                Origin: "http://localhost",
+                Cookie: ownerCookie,
+                "Content-Type": "application/pdf",
+                "Idempotency-Key": crypto.randomUUID(),
+              },
+              body: Buffer.from(pdf),
+            },
+          ),
+        )
+      ).json();
+    const otherDocument = await upload(other.id, cookie);
     assert.equal(
       (
         await call(
           `/workspaces/${other.id}/answers`,
           "POST",
-          ask("Cross-project", first.threadId),
+          {
+            ...ask("Cross-project", first.threadId),
+            documentIds: [otherDocument.id],
+          },
           cookie,
         )
       ).status,
       404,
     );
+    const bob = (
+      await call("/session", "POST", {
+        email: "bob@example.test",
+        password: "test-password",
+      })
+    ).headers
+      .get("set-cookie")!
+      .split(";")[0];
+    const bobProject = await (
+      await call("/workspaces", "POST", { name: "Bob project" }, bob)
+    ).json();
+    const bobDocument = await upload(bobProject.id, bob);
+    assert.equal(
+      (
+        await call(
+          `/workspaces/${bobProject.id}/answers`,
+          "POST",
+          {
+            ...ask("Cross-account", first.threadId),
+            documentIds: [bobDocument.id],
+          },
+          bob,
+        )
+      ).status,
+      404,
+    );
+    assert.deepEqual(
+      await (
+        await call(
+          `/workspaces/${bobProject.id}/answers`,
+          "GET",
+          undefined,
+          bob,
+        )
+      ).json(),
+      [],
+    );
+
+    // Arrange a historical fixture without the newly introduced field; assertions stay at the API.
+    const legacyId = crypto.randomUUID();
+    await store.commitAnswer({
+      ...first,
+      id: legacyId,
+      threadId: undefined,
+      requestKey: crypto.randomUUID(),
+      question: "Legacy research",
+    });
+    assert.ok(
+      (await (await call(path, "GET", undefined, cookie)).json()).some(
+        (answer: { id: string }) => answer.id === legacyId,
+      ),
+    );
+    const legacyFollowup = await (
+      await call(path, "POST", ask("Continue old research", legacyId), cookie)
+    ).json();
+    assert.equal(legacyFollowup.text, "Following up on: Legacy research");
+    let longThread: string | undefined;
+    for (let index = 0; index < 6; index++) {
+      const response = await call(
+        path,
+        "POST",
+        ask(`LONG ${index} ` + "q".repeat(1500), longThread),
+        cookie,
+      );
+      assert.equal(response.status, 201);
+      longThread = (await response.json()).threadId;
+    }
+    const bounded = await (
+      await call(path, "POST", ask("Report context limits", longThread), cookie)
+    ).json();
+    assert.equal(bounded.text, "4:1000:2000");
   } finally {
     store.close();
   }
