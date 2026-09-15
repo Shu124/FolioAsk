@@ -29,6 +29,37 @@ if (location.pathname === "/app") {
     <section id="pricing" class="pricing"><p class="eyebrow">SIMPLE LIMITS. NO SURPRISE OVERAGES.</p><h2>Start small. Subscribe when it fits.</h2><div class="price-grid"><article class="price-card"><span class="badge">Planned free trial</span><h3>Explore</h3><p class="price">$0</p><p>Public, non-sensitive documents only.</p><ul><li>3 successful uploads, lifetime</li><li>20 successful answers, lifetime</li><li>20 pages / 10 MB per document</li><li>Content expires after 30 days of inactivity</li></ul><a href="#demo" class="secondary">Try the guided demo</a></article><article class="price-card featured"><span class="badge">Planned subscription</span><h3>Research</h3><p class="price">$29<span> / month · USD</span></p><p>Eligible private business documents, once verified.</p><ul><li>500 processed pages per billing month</li><li>500 successful answers per billing month</li><li>1 GB storage · 100 pages / 25 MB per file</li><li>Paid-model processing · no automatic overages</li></ul><button type="button" disabled>Paid plan not yet available</button></article></div><p class="quiet">Allowances are provisional until operating costs are validated. Failed processing will not consume allowances; successful “not found” answers will. Deletion will not reset usage.</p></section>
   </main><footer class="site-footer"><a class="brand" href="/">FolioAsk</a><p>Answers worth checking.</p><span>Preview · Not professional advice</span></footer>`;
 
+  const demoGrid = document.querySelector<HTMLElement>(".demo-grid")!;
+  const sourcePanel = document.querySelector<HTMLElement>(".source-panel")!;
+  const chatPanel = document.querySelector<HTMLElement>(".chat-panel")!;
+  sourcePanel.id = "demo-document";
+  chatPanel.id = "demo-chat";
+  const viewControls = document.createElement("div");
+  viewControls.className = "demo-view-controls";
+  viewControls.setAttribute("role", "group");
+  viewControls.setAttribute("aria-label", "Demo view");
+  viewControls.innerHTML = `<button type="button" data-view="document" aria-controls="demo-document">Document</button><button type="button" data-view="chat" aria-controls="demo-chat">Chat</button>`;
+  demoGrid.before(viewControls);
+  function showView(view: "document" | "chat") {
+    demoGrid.dataset.view = view;
+    viewControls
+      .querySelectorAll<HTMLButtonElement>("[data-view]")
+      .forEach((button) => {
+        button.setAttribute(
+          "aria-pressed",
+          String(button.dataset.view === view),
+        );
+      });
+  }
+  viewControls
+    .querySelectorAll<HTMLButtonElement>("[data-view]")
+    .forEach((button) => {
+      button.addEventListener("click", () =>
+        showView(button.dataset.view === "document" ? "document" : "chat"),
+      );
+    });
+  showView("chat");
+
   function showSample(key: SampleKey) {
     const sample = samples[key];
     const fields = {
@@ -60,6 +91,7 @@ if (location.pathname === "/app") {
       );
     });
   document.getElementById("citation")!.addEventListener("click", () => {
+    showView("document");
     const passage = document.getElementById("source-passage")!;
     const highlight = document.createElement("mark");
     highlight.textContent = passage.textContent;
@@ -72,4 +104,9 @@ if (location.pathname === "/app") {
   signInLink.href = "/app";
   signInLink.textContent = "Sign in";
   document.querySelector("nav")!.append(signInLink);
+  const signupLink = document.createElement("a");
+  signupLink.href = "/app?auth=signup";
+  signupLink.textContent = "Create account";
+  signupLink.className = "nav-signup";
+  document.querySelector("nav")!.append(signupLink);
 }

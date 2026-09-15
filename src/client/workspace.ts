@@ -9,6 +9,68 @@ export async function mountWorkspace(root: HTMLElement) {
   const detail = root.querySelector<HTMLElement>("#workspace-detail")!;
   const list = root.querySelector<HTMLElement>("#workspace-list")!;
   const loginForm = root.querySelector<HTMLFormElement>("#signin-form")!;
+  const authHeading = signin.querySelector("h1")!;
+  const passwordInput =
+    loginForm.querySelector<HTMLInputElement>('[name="password"]')!;
+  const submitAuth =
+    loginForm.querySelector<HTMLButtonElement>('[type="submit"]')!;
+  const toggleAuth = root.querySelector<HTMLButtonElement>("#signup")!;
+  const passwordHelp = document.createElement("p");
+  passwordHelp.id = "password-help";
+  passwordHelp.className = "quiet";
+  passwordHelp.textContent = "Use at least 12 characters for your password.";
+  const confirmation = document.createElement("label");
+  confirmation.textContent = "Confirm password";
+  const confirmInput = document.createElement("input");
+  confirmInput.type = "password";
+  confirmInput.name = "confirm-password";
+  confirmInput.autocomplete = "new-password";
+  confirmInput.maxLength = 256;
+  confirmation.append(confirmInput);
+  const actions = loginForm.querySelector(".form-actions")!;
+  actions.before(passwordHelp, confirmation);
+  let authMode: "signin" | "signup" = "signin";
+  function setAuthMode(mode: typeof authMode) {
+    authMode = mode;
+    const registering = mode === "signup";
+    authHeading.textContent = registering
+      ? "Create your FolioAsk account"
+      : "Sign in to your workspace";
+    submitAuth.textContent = registering ? "Create account" : "Sign in";
+    toggleAuth.textContent = registering ? "Back to sign in" : "Create account";
+    passwordInput.autocomplete = registering
+      ? "new-password"
+      : "current-password";
+    passwordInput.minLength = registering ? 12 : 1;
+    if (registering)
+      passwordInput.setAttribute("aria-describedby", passwordHelp.id);
+    else passwordInput.removeAttribute("aria-describedby");
+    passwordHelp.hidden = !registering;
+    confirmation.hidden = !registering;
+    confirmInput.disabled = !registering;
+    confirmInput.required = registering;
+    passwordInput.value = "";
+    confirmInput.value = "";
+    confirmInput.setCustomValidity("");
+    const url = new URL(location.href);
+    if (registering) url.searchParams.set("auth", "signup");
+    else url.searchParams.delete("auth");
+    history.replaceState(null, "", url.pathname + url.search);
+  }
+  function validateConfirmation() {
+    confirmInput.setCustomValidity(
+      authMode === "signup" && confirmInput.value !== passwordInput.value
+        ? "Passwords must match."
+        : "",
+    );
+  }
+  passwordInput.addEventListener("input", validateConfirmation);
+  confirmInput.addEventListener("input", validateConfirmation);
+  setAuthMode(
+    new URL(location.href).searchParams.get("auth") === "signup"
+      ? "signup"
+      : "signin",
+  );
   signin.hidden = true;
   status.textContent = "Restoring session…";
   let disposeDocuments = () => {};
@@ -92,8 +154,20 @@ export async function mountWorkspace(root: HTMLElement) {
   }
   loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    validateConfirmation();
+    if (!loginForm.reportValidity()) return;
     void action(async () => {
       const data = new FormData(loginForm);
+      if (authMode === "signup") {
+        const result = await api<{ message: string }>("/signup", "POST", {
+          email: data.get("email"),
+          password: data.get("password"),
+        });
+        setAuthMode("signin");
+        status.textContent = result.message;
+        passwordInput.focus();
+        return;
+      }
       await api("/session", "POST", {
         email: data.get("email"),
         password: data.get("password"),
@@ -103,15 +177,9 @@ export async function mountWorkspace(root: HTMLElement) {
     });
   });
   root.querySelector("#signup")!.addEventListener("click", () => {
-    if (!loginForm.reportValidity()) return;
-    void action(async () => {
-      const data = new FormData(loginForm);
-      const result = await api<{ message: string }>("/signup", "POST", {
-        email: data.get("email"),
-        password: data.get("password"),
-      });
-      status.textContent = result.message;
-    });
+    setAuthMode(authMode === "signin" ? "signup" : "signin");
+    status.textContent = "";
+    loginForm.querySelector<HTMLInputElement>('[name="email"]')!.focus();
   });
   root.querySelector("#signout")!.addEventListener(
     "click",

@@ -22,6 +22,8 @@ test("visitor inspects all three prepared samples without model requests", async
     ["Healthcare", "120 adult volunteers"],
   ]) {
     await page.getByRole("button", { name: sector, exact: true }).click();
+    const chatView = page.getByRole("button", { name: "Chat", exact: true });
+    if (await chatView.isVisible()) await chatView.click();
     await expect(page.getByText("Prepared answer · No live AI")).toBeVisible();
     await page.getByRole("button", { name: "View source · page 1" }).click();
     await expect(page.locator("mark")).toContainText(evidence);

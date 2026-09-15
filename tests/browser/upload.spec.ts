@@ -8,7 +8,9 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await page
     .getByLabel("Email")
     .fill(`upload-${crypto.randomUUID()}@example.test`);
-  await page.getByLabel("Password").fill("local-test-password");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Workspace name").fill("Upload journey");
   await page.getByRole("button", { name: "Create workspace" }).click();

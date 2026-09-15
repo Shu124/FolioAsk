@@ -9,7 +9,7 @@
   "scripts": {
     "predev": "node scripts/generate-fixtures.ts",
     "prebuild": "node scripts/generate-fixtures.ts",
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node --use-system-ca node_modules/vite/bin/vite.js --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:api && npm run test:browser",

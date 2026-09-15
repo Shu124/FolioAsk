@@ -7,7 +7,9 @@ test("sign in, create and reopen an owned workspace, then sign out", async ({
   await page
     .getByLabel("Email")
     .fill(`owner-${crypto.randomUUID()}@example.test`);
-  await page.getByLabel("Password").fill("local-test-password");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Workspace name").fill("Elm Street");
   await page.getByRole("button", { name: "Create workspace" }).click();
@@ -33,7 +35,9 @@ test("a second browser account cannot open or rename the first account workspace
   await page
     .getByLabel("Email")
     .fill(`alice-${crypto.randomUUID()}@example.test`);
-  await page.getByLabel("Password").fill("local-test-password");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Workspace name").fill("Private project title");
   await page.getByRole("button", { name: "Create workspace" }).click();
@@ -49,7 +53,9 @@ test("a second browser account cannot open or rename the first account workspace
     await bob
       .getByLabel("Email")
       .fill(`bob-${crypto.randomUUID()}@example.test`);
-    await bob.getByLabel("Password").fill("local-test-password");
+    await bob
+      .getByLabel("Password", { exact: true })
+      .fill("local-test-password");
     await bob.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(bob.getByRole("status")).toHaveText("Workspace not found.");
     await expect(

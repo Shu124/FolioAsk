@@ -175,6 +175,17 @@
 .form-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+}
+[hidden] {
+  display: none !important;
+}
+#password-help {
+  margin: -12px 0 0;
+}
+.nav-signup {
+  color: var(--blue);
+  font-weight: 600;
 }
 #account-status:not(:empty) {
   padding: 12px;
@@ -293,6 +304,13 @@ main {
   padding: 22px 5%;
   border-bottom: 1px solid var(--border);
 }
+.site-header {
+  flex-wrap: wrap;
+}
+.site-header nav {
+  flex-wrap: wrap;
+  align-items: center;
+}
 .brand {
   display: flex;
   align-items: center;
@@ -400,6 +418,15 @@ h1 span {
   display: flex;
   gap: 10px;
   margin: 20px 0;
+  flex-wrap: wrap;
+}
+.demo-view-controls {
+  display: none;
+}
+.demo-view-controls button[aria-pressed="true"] {
+  background: #eef4ff;
+  color: var(--blue);
+  border-color: #b7ccfa;
 }
 .sector-tabs button {
   font-size: 12px;
@@ -486,7 +513,8 @@ h1 span {
   min-height: 370px;
   font-family: Georgia, serif;
   line-height: 1.9;
-  font-size: 13px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
 }
 .paper .eyebrow,
 .paper footer,
@@ -500,10 +528,10 @@ h1 span {
   letter-spacing: -0.6px;
 }
 .paper .eyebrow {
-  font-size: 8px;
+  font-size: 10px;
 }
 .paper .quiet {
-  font-size: 10px;
+  font-size: 12px;
 }
 .paper-rule {
   height: 1px;
@@ -511,7 +539,7 @@ h1 span {
   margin: 22px 0;
 }
 .paper footer {
-  font-size: 7px;
+  font-size: 9px;
   color: var(--muted);
   margin-top: 42px;
   letter-spacing: 1px;
@@ -711,15 +739,27 @@ mark {
   }
   .demo-grid {
     grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
   }
-  .source-panel {
-    grid-row: 2;
+  .demo-view-controls {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 12px;
+  }
+  .demo-view-controls button {
+    flex: 1;
+  }
+  .demo-grid[data-view="chat"] .source-panel,
+  .demo-grid[data-view="document"] .chat-panel {
+    display: none;
   }
   .chat-panel {
     border-left: 0;
   }
   .paper {
     min-height: 320px;
+    margin: 16px 12px;
+    padding: 24px 18px;
   }
   .boundaries {
     grid-template-columns: 1fr;

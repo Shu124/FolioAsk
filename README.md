@@ -66,10 +66,16 @@ and [build environment configuration](https://developers.cloudflare.com/pages/co
 4. For a controlled pilot, create and confirm test users via the dashboard. Before
    opening signup to customers, configure your own SMTP provider and test email
    delivery; do not depend on the development email service for public signup.
-5. From project settings, obtain the project URL and server-side legacy `service_role`
-   API key. Copy `.env.example` to `.env` locally and fill `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY`. Never use a `VITE_` prefix for secrets or commit them.
-6. Restart `npm run dev`, visit `/app`, sign in, create a workspace, and reload.
+5. In Settings → API Keys, copy a server-side secret key (`sb_secret_...`). Existing
+   legacy `service_role` keys also work. Copy `.env.example` to `.env` locally and
+   fill `SUPABASE_URL` (the project's `https://PROJECT_REF.supabase.co` URL) and
+   `SUPABASE_SERVICE_ROLE_KEY` (this variable accepts either key format). Never use
+   a `VITE_` prefix for secrets or commit them.
+6. Restart `npm run dev`, visit `/app`, and choose **Create account** to open the
+   registration form, or open `/app?auth=signup` directly. Enter your email and a
+   password of at least 12 characters, repeat the password, and submit. Confirm
+   your email before signing in, then create a workspace and reload. Existing
+   confirmed pilot users can use **Sign in** immediately.
 7. In Cloudflare Pages settings → Variables and Secrets, configure the same values
    for the intended environment, marking the key secret. Redeploy. The repository's
    `functions/api/[[path]].ts` supplies the backend; this is not a static-only upload.
@@ -83,6 +89,23 @@ session whose token is stored hashed. Sessions expire after 24 hours (sign in ag
 and sign-out revokes that session immediately. Backend routes enforce ownership;
 the service-role key bypasses database RLS and must remain server-only. This is
 implementation detail, not a security or compliance certification.
+
+### If local sign-in fails
+
+- Keep `FOLIO_TEST_MODE` unset or `0` when using a real Supabase account. Synthetic
+  mode accepts only the documented fixture credentials and does not send signup emails.
+- Verify the email confirmation link and run `001_workspaces.sql` before signing
+  in. The Supabase dashboard's own login does not create an app user.
+- Public signup email delivery requires your Supabase SMTP configuration. If no
+  email arrives, check spam and Authentication logs/provider settings. The app's
+  confirmation message deliberately does not reveal whether an account exists.
+- `npm run dev` uses Node's `--use-system-ca` flag. This includes trusted operating
+  system certificates while keeping HTTPS verification enabled, fixing certificate
+  chain errors on Windows networks with a trusted certificate proxy. Restart an
+  older running server after updating. Never disable TLS verification.
+
+Reference: [Node system certificates](https://nodejs.org/api/cli.html#--use-system-ca)
+and [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
 References: [Supabase password authentication](https://supabase.com/docs/guides/auth/passwords),
 [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security),
