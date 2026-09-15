@@ -119,7 +119,7 @@ export async function mountWorkspace(root: HTMLElement) {
     if (response.status === 204) return undefined as T;
     const result = await response.json();
     if (!response.ok) {
-      if (response.status === 401) signedOut();
+      if (response.status === 401) signedOut(result.error);
       throw new Error(result.error || "Request failed. Please retry.");
     }
     return result;

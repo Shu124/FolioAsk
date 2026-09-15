@@ -46,14 +46,24 @@ export async function accountRoute(
       "Enter your current password and a new password of 12 to 256 characters.",
     );
   try {
-    await auth.changePassword(profile, data.currentPassword, data.password);
+    const verified = await auth.signIn(profile.email, data.currentPassword);
+    if (verified.id !== account.id) throw new Error("Identity mismatch");
   } catch {
     throw new HttpError(
       400,
       "Password could not be changed. Check your current password and try again.",
     );
   }
+  // Revoke first: a storage failure must never leave a changed password with old sessions.
   await store.deleteAccountSessions(account.id);
+  try {
+    await auth.changePassword(profile, data.currentPassword, data.password);
+  } catch {
+    throw new HttpError(
+      401,
+      "Password update could not be confirmed. Your FolioAsk sessions were signed out. Try signing in with your existing password; if that fails, try the new password or contact support.",
+    );
+  }
   return json({
     message: "Password changed. Sign in again with your new password.",
   });

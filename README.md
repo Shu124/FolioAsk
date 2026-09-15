@@ -246,7 +246,9 @@ open Dashboard, Documents, Chat, or Settings.
   usage, and choose Light, Dark or System. Appearance is remembered on this browser,
   not synced between devices; original PDF pages retain their colors.
 - **Password:** email accounts can change their password after entering the current
-  password. Successful changes revoke all FolioAsk sessions. Google-only accounts
+  password. FolioAsk verifies the current password and revokes sessions before the
+  provider update. If the provider then fails, sessions stay signed out and the app
+  explains how to sign in again. Google-only accounts
   manage their password with Google. A self-service forgotten-password email flow
   is not included in this release.
 

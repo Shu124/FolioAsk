@@ -134,6 +134,7 @@ test("account API uses authenticated Supabase user for password updates and whit
   const store = new SqliteStore(":memory:");
   let name = "Original";
   let updatedPassword = "local-test-password";
+  let failUpdate = true;
   t.mock.method(
     globalThis,
     "fetch",
@@ -156,6 +157,7 @@ test("account API uses authenticated Supabase user for password updates and whit
           "Bearer user-scoped-test-token",
         );
         assert.equal(body.current_password, updatedPassword);
+        if (failUpdate) return Response.json({}, { status: 503 });
         updatedPassword = body.password;
         return Response.json({ id: "alice-id" });
       }
@@ -208,13 +210,31 @@ test("account API uses authenticated Supabase user for password updates and whit
       cookie,
     );
     assert.equal((await profile.json()).name, "New name");
+    const failedUpdate = await call(
+      "/account/password",
+      "POST",
+      { currentPassword: "local-test-password", password: "new-test-password" },
+      cookie,
+    );
+    assert.equal(failedUpdate.status, 401);
+    assert.match((await failedUpdate.json()).error, /sessions were signed out/);
+    assert.equal(
+      (await call("/session", "GET", undefined, cookie)).status,
+      401,
+    );
+    const recovered = await call("/session", "POST", {
+      email: "alice@example.test",
+      password: "local-test-password",
+    });
+    const recoveredCookie = recovered.headers.get("set-cookie")!.split(";")[0];
+    failUpdate = false;
     assert.equal(
       (
         await call(
           "/account/password",
           "POST",
           { currentPassword: "wrong", password: "new-test-password" },
-          cookie,
+          recoveredCookie,
         )
       ).status,
       400,
@@ -228,7 +248,7 @@ test("account API uses authenticated Supabase user for password updates and whit
             currentPassword: "local-test-password",
             password: "new-test-password",
           },
-          cookie,
+          recoveredCookie,
         )
       ).status,
       200,

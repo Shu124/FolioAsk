@@ -16,10 +16,7 @@ function apply() {
     preference === "system" ? (media.matches ? "dark" : "light") : preference;
   window.dispatchEvent(new Event("folio-theme-change"));
 }
-export function themePreference() {
-  return preference;
-}
-export function setTheme(value: Theme) {
+function setTheme(value: Theme) {
   if (!valid(value)) return;
   preference = value;
   try {
