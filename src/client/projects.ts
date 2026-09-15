@@ -17,6 +17,9 @@ export function mountProjects(
   const main = root.querySelector<HTMLElement>("#project-main")!;
   const title = root.querySelector<HTMLElement>("#project-title")!;
   const dashboard = root.querySelector<HTMLElement>("#project-dashboard")!;
+  const recent = document.createElement("div");
+  recent.className = "recent-conversations";
+  dashboard.append(recent);
   const evidence = root.querySelector<HTMLElement>("#project-evidence")!;
   const settings = root.querySelector<HTMLElement>("#project-settings")!;
   const nav = root.querySelector<HTMLElement>("nav")!;
@@ -47,7 +50,9 @@ export function mountProjects(
       else button.removeAttribute("aria-current");
     }
     if (current) {
-      const url = new URL("/app", location.origin);
+      const url = new URL(location.href);
+      if (url.searchParams.get("workspace") !== current.id)
+        url.searchParams.delete("thread");
       url.searchParams.set("workspace", current.id);
       url.searchParams.set("view", view.toLowerCase());
       history.replaceState(null, "", url.pathname + url.search);
@@ -70,6 +75,7 @@ export function mountProjects(
     documentView?.dispose();
     documentView = undefined;
     evidence.replaceChildren();
+    recent.replaceChildren();
     current = undefined;
     main.hidden = true;
     let project: Workspace;
@@ -85,7 +91,31 @@ export function mountProjects(
     selector.value = project.id;
     onboarding.hidden = true;
     main.hidden = false;
-    documentView = mountDocuments(evidence, project.id, api, signedOut);
+    // Commit the project URL before the chat reads its conversation selection.
+    show(activeView);
+    documentView = mountDocuments(
+      evidence,
+      project.id,
+      api,
+      signedOut,
+      (history) => {
+        if (disposed || revision !== sequence) return;
+        recent.replaceChildren();
+        if (!history.length)
+          recent.textContent =
+            "No conversations yet. Ask your first question in Chat.";
+        for (const thread of history) {
+          const button = document.createElement("button");
+          button.textContent = thread.title;
+          button.title = `Updated ${new Date(thread.updatedAt).toLocaleString()}`;
+          button.onclick = () => {
+            documentView?.openConversation(thread.id);
+            show("Chat");
+          };
+          recent.append(button);
+        }
+      },
+    );
     show(activeView);
     try {
       await documentView.ready;

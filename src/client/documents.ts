@@ -1,6 +1,7 @@
 import type { DocumentRecord } from "../server/documents";
 import type { Citation } from "../server/answers";
 import { mountAnswers } from "./answers";
+import type { ConversationSummary } from "./conversations";
 
 export type Api = <T>(
   path: string,
@@ -12,6 +13,7 @@ export function mountDocuments(
   workspaceId: string,
   api: Api,
   onUnauthorized: () => void,
+  onHistory?: (history: ConversationSummary[]) => void,
 ) {
   root.classList.add("evidence-workspace");
   root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet">Controlled pilot: public, non-sensitive, operator-approved fixtures only. No patient records, confidential files or specially regulated data. A checkbox is not proof of eligibility.</p><a href="/fixtures/contract.pdf" download class="citation">Download synthetic test PDF</a><p id="upload-usage"></p><form id="upload-form"><label>Choose PDF<input type="file" accept="application/pdf" required></label><button class="primary" type="submit">Upload PDF</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
@@ -35,6 +37,7 @@ export function mountDocuments(
     async (citation) => {
       await openDocument(citation.documentId, citation);
     },
+    onHistory,
   );
   input.onchange = () => {
     retryKey = crypto.randomUUID();
@@ -250,6 +253,7 @@ export function mountDocuments(
     xhr.send(file);
   };
   return {
+    openConversation: answers.openConversation,
     show(view: "documents" | "chat") {
       answerRoot.hidden = view === "documents";
       root.dataset.view = view;

@@ -14,6 +14,8 @@ export interface Citation extends Omit<Evidence, "id" | "text"> {
 }
 export interface AnswerRecord {
   id: string;
+  /** Absent on older records: each legacy answer is its own conversation. */
+  threadId?: string;
   ownerId: string;
   workspaceId: string;
   documentIds: string[];
@@ -54,7 +56,15 @@ export interface ModelProvider {
   mode?: "simulated" | "live";
   indexKey: string;
   embed(texts: string[], task: "document" | "query"): Promise<number[][]>;
-  answer(question: string, evidence: Evidence[]): Promise<unknown>;
+  answer(
+    question: string,
+    evidence: Evidence[],
+    history?: ConversationTurn[],
+  ): Promise<unknown>;
+}
+export interface ConversationTurn {
+  question: string;
+  text: string;
 }
 export interface AnswerServices {
   store: AnswerStore;
@@ -247,6 +257,10 @@ export async function answerRoute(
   const data = await bodyJson(request);
   const question = requiredText(data.question, "Question", 2000);
   const requestKey = requiredText(data.requestKey, "Request key", 100);
+  const threadId =
+    data.threadId === undefined
+      ? undefined
+      : requiredText(data.threadId, "Conversation", 100);
   if (
     !Array.isArray(data.documentIds) ||
     data.documentIds.length !== 1 ||
@@ -271,7 +285,12 @@ export async function answerRoute(
       "This document is not approved for free processing.",
     );
   const fingerprint = await hashToken(
-    JSON.stringify({ question, documentId: document.id, workspaceId }),
+    JSON.stringify({
+      question,
+      documentId: document.id,
+      workspaceId,
+      threadId,
+    }),
   );
   const previous = await services.store.findAnswer(ownerId, requestKey);
   if (previous) {
@@ -282,6 +301,19 @@ export async function answerRoute(
       );
     return json(previous);
   }
+  const conversation = threadId
+    ? (await services.store.listAnswers(ownerId, workspaceId)).filter(
+        (answer) => (answer.threadId ?? answer.id) === threadId,
+      )
+    : [];
+  if (threadId && !conversation.length)
+    throw new HttpError(404, "Conversation not found.");
+  const history: ConversationTurn[] = conversation
+    .slice(-4)
+    .map((answer) => ({
+      question: answer.question.slice(0, 1000),
+      text: answer.text.slice(0, 2000),
+    }));
   if ((await documents.store.usage(ownerId)).answers >= 20)
     throw new HttpError(
       429,
@@ -292,13 +324,19 @@ export async function answerRoute(
       503,
       "Free AI is not configured or is paused. Your question is preserved.",
     );
-  const evidence = await retrieve(document, question, services);
+  const retrievalQuestion = [
+    ...history.slice(-2).map((turn) => turn.question),
+    question,
+  ].join("\n");
+  const evidence = await retrieve(document, retrievalQuestion, services);
   const result = validateAnswer(
-    await services.provider.answer(question, evidence),
+    await services.provider.answer(question, evidence, history),
     evidence,
   );
+  const id = crypto.randomUUID();
   const record: AnswerRecord = {
-    id: crypto.randomUUID(),
+    id,
+    threadId: threadId ?? id,
     ownerId,
     workspaceId,
     documentIds: [document.id],

@@ -94,6 +94,20 @@
 .project-content {
   min-width: 0;
 }
+.recent-conversations {
+  display: grid;
+  gap: 12px;
+}
+.recent-conversations button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.answer-panel > label select {
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  margin-bottom: 12px;
+}
 #project-onboarding {
   max-width: 560px;
   padding: 24px;

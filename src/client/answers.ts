@@ -1,27 +1,64 @@
 import type { AnswerRecord, Citation } from "../server/answers";
 import type { DocumentRecord } from "../server/documents";
 import type { Api } from "./documents";
+import { conversations, type ConversationSummary } from "./conversations";
 
 export function mountAnswers(
   root: HTMLElement,
   workspaceId: string,
   api: Api,
   onCitation: (citation: Citation) => Promise<void>,
+  onHistory: (history: ConversationSummary[]) => void = () => {},
 ) {
   root.innerHTML = `<section class="answer-panel"><h3>Ask your document</h3><p class="quiet">Answers can be wrong. Verify each source. No professional advice.</p><p id="answer-usage"></p><div id="answer-history"></div><form id="question-form"><label>Selected document<select required aria-label="Selected document"></select></label><label>Your question<textarea required maxlength="2000" rows="3" placeholder="When are the shop drawings due?"></textarea></label><button class="primary" type="submit">Ask selected document</button></form><p role="status" id="question-status"></p><p class="quiet">Successful “not found” answers count. Failed answers do not. Streaming comes in a later slice.</p></section>`;
   const form = root.querySelector<HTMLFormElement>("form")!;
-  const selection = root.querySelector<HTMLSelectElement>("select")!;
+  const selection = form.querySelector<HTMLSelectElement>("select")!;
   const question = root.querySelector<HTMLTextAreaElement>("textarea")!;
-  const button = root.querySelector<HTMLButtonElement>("button")!;
+  const button = form.querySelector<HTMLButtonElement>("button")!;
   const status = root.querySelector<HTMLElement>("#question-status")!;
   const history = root.querySelector<HTMLElement>("#answer-history")!;
   let requestKey = crypto.randomUUID();
   let disposed = false;
   let pending = false;
+  let answers: AnswerRecord[] = [];
+  let threadId: string | undefined =
+    new URL(location.href).searchParams.get("thread") ?? undefined;
+  const pickerLabel = document.createElement("label");
+  pickerLabel.textContent = "Conversation";
+  const picker = document.createElement("select");
+  pickerLabel.append(picker);
+  const newChat = document.createElement("button");
+  newChat.type = "button";
+  newChat.textContent = "New chat";
+  history.before(pickerLabel, newChat);
+  function rememberThread() {
+    const url = new URL(location.href);
+    if (threadId) url.searchParams.set("thread", threadId);
+    else url.searchParams.delete("thread");
+    historyReplace(url);
+  }
+  function historyReplace(url: URL) {
+    window.history.replaceState(null, "", url.pathname + url.search);
+  }
+  function openConversation(id?: string) {
+    if (pending || disposed) return;
+    if (id && !answers.some((answer) => (answer.threadId ?? answer.id) === id))
+      return;
+    threadId = id;
+    question.value = "";
+    requestKey = crypto.randomUUID();
+    status.textContent = "";
+    rememberThread();
+    renderHistory();
+  }
+  picker.onchange = () => openConversation(picker.value || undefined);
+  newChat.onclick = () => openConversation();
   function updateControls() {
     button.disabled = pending || disposed || selection.options.length === 0;
     question.disabled = pending || disposed;
     selection.disabled = pending || disposed;
+    picker.disabled = pending || disposed;
+    newChat.disabled = pending || disposed;
   }
   question.oninput = () => {
     requestKey = crypto.randomUUID();
@@ -30,15 +67,31 @@ export function mountAnswers(
     requestKey = crypto.randomUUID();
   };
   async function refresh() {
-    const answers = await api<AnswerRecord[]>(
+    const saved = await api<AnswerRecord[]>(
       `/workspaces/${workspaceId}/answers`,
     );
     const usage = await api<{ answersRemaining: number }>("/usage");
     if (disposed) return;
+    answers = saved;
+    if (
+      threadId &&
+      !answers.some((answer) => (answer.threadId ?? answer.id) === threadId)
+    )
+      threadId = undefined;
     root.querySelector("#answer-usage")!.textContent =
       `${usage.answersRemaining} of 20 lifetime answers remaining`;
+    renderHistory();
+    onHistory(conversations(answers));
+  }
+  function renderHistory() {
+    picker.replaceChildren(new Option("New conversation", ""));
+    for (const thread of conversations(answers))
+      picker.append(new Option(thread.title, thread.id));
+    picker.value = threadId ?? "";
     history.replaceChildren();
-    for (const answer of answers) {
+    for (const answer of answers.filter(
+      (answer) => (answer.threadId ?? answer.id) === threadId,
+    )) {
       const card = document.createElement("article");
       card.className = "saved-answer";
       const heading = document.createElement("h4");
@@ -75,11 +128,19 @@ export function mountAnswers(
     status.textContent = "Retrieving evidence and asking the model…";
     void (async () => {
       try {
-        await api(`/workspaces/${workspaceId}/answers`, "POST", {
-          question: question.value,
-          documentIds: [selection.value],
-          requestKey,
-        });
+        const saved = await api<AnswerRecord>(
+          `/workspaces/${workspaceId}/answers`,
+          "POST",
+          {
+            question: question.value,
+            documentIds: [selection.value],
+            requestKey,
+            threadId,
+          },
+        );
+        if (disposed) return;
+        threadId = saved.threadId ?? saved.id;
+        rememberThread();
         await refresh();
         if (disposed) return;
         question.value = "";
@@ -100,6 +161,7 @@ export function mountAnswers(
   };
   return {
     refresh,
+    openConversation,
     dispose() {
       disposed = true;
     },
