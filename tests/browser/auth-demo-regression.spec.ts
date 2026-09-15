@@ -133,6 +133,22 @@ test("inspect demo at desktop, tablet and mobile widths", async ({ page }) => {
       exact: true,
     });
     if (await documentView.isVisible()) await documentView.click();
+    await expect(
+      page.getByRole("region", { name: "Source document", exact: true }),
+    ).toBeVisible();
+    const chat = page.getByRole("region", { name: "Sample conversation" });
+    if (width > 650) await expect(chat).toBeVisible();
+    else await expect(chat).toBeHidden();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await page
+        .locator(".source-panel")
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
     await page
       .locator(".demo-grid")
       .screenshot({ path: test.info().outputPath(`demo-${width}.png`) });
