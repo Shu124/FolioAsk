@@ -229,3 +229,32 @@ cross-document comparisons, checked arithmetic, streaming controls, exports,
 deletion/retention, paid entitlements, analytics, quality evaluation, and verified
 free/paid releases are later tickets. Their setup instructions will accompany their
 implementation rather than implying those integrations already work.
+
+# Google sign-in setup
+
+Google sign-in uses Supabase with PKCE; FolioAsk exchanges the authorization code
+on the server and issues its own HttpOnly session. No Google secret belongs in
+browser code or a `VITE_` environment variable.
+
+1. In Google Cloud Console, choose/create a project. Configure the Google Auth
+   Platform consent screen (branding, audience and contact details). If the app
+   is in testing, add the Google accounts that will test it.
+2. Create an OAuth client of type **Web application**. In authorized redirect
+   URIs, enter `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback` (copy the
+   exact callback from your Supabase Google provider screen).
+3. In Supabase **Authentication > Sign In / Providers > Google**, enable Google
+   and save the client ID and client secret there, not in this repository.
+4. In **Authentication > URL Configuration**, set the Site URL to your deployed
+   FolioAsk origin. Add allowed redirect URLs
+   `http://127.0.0.1:5173/app?oauth=google&state=*` for local development and
+   `https://YOUR_FOLIOASK_DOMAIN/app?oauth=google&state=*` for production. Keep
+   the domain and path exact; only the random state value needs a wildcard.
+5. Run the app, choose **Continue with Google**, complete consent, and confirm
+   that you return to FolioAsk and can create or reopen your own project.
+   Check cancellation, sign-out, and signing back in as well.
+
+If Google is disabled or unreachable, FolioAsk keeps email login available and
+shows a configuration message. Automated tests simulate identity responses;
+they do not prove that your Google consent screen and credentials are live.
+See [Supabase's Google guide](https://supabase.com/docs/guides/auth/social-login/auth-google)
+and [PKCE flow](https://supabase.com/docs/guides/auth/sessions/pkce-flow).

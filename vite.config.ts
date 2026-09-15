@@ -115,9 +115,12 @@ export default defineConfig(({ mode }) => {
                     },
                     { status: 503 },
                   );
-              response.headers.forEach((value, key) =>
-                res.setHeader(key, value),
+              response.headers.forEach(
+                (value, key) =>
+                  key !== "set-cookie" && res.setHeader(key, value),
               );
+              if (response.headers.getSetCookie().length)
+                res.setHeader("Set-Cookie", response.headers.getSetCookie());
               res.writeHead(response.status);
               res.end(Buffer.from(await response.arrayBuffer()));
             } catch {

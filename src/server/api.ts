@@ -1,4 +1,5 @@
-import type { IdentityProvider, Store } from "./contracts.ts";
+import type { Account, IdentityProvider, Store } from "./contracts.ts";
+import { googleAuth } from "./google-auth.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { documentRoute, type DocumentServices } from "./documents.ts";
 import { answerRoute, type AnswerServices } from "./answers.ts";
@@ -28,13 +29,26 @@ export function createApi(deps: {
     const cookie = (value: string, age: number) =>
       `folio_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${url.protocol === "https:" ? "; Secure" : ""}`;
     let response: Response;
+    const signIn = async (account: Account) => {
+      const sessionToken = crypto.randomUUID() + crypto.randomUUID();
+      await store.putSession({
+        hash: await hashToken(sessionToken),
+        account,
+        expiresAt: now() + SESSION_SECONDS * 1000,
+      });
+      return json({ email: account.email }, 200, {
+        "Set-Cookie": cookie(sessionToken, SESSION_SECONDS),
+      });
+    };
     try {
       if (
         !["GET", "HEAD"].includes(method) &&
         request.headers.get("origin") !== url.origin
       )
         throw new HttpError(403, "This request must originate from FolioAsk.");
-      if (
+      const google = await googleAuth(request, auth, now(), signIn);
+      if (google) response = google;
+      else if (
         (path === "/session" && method === "POST") ||
         (path === "/signup" && method === "POST")
       ) {
@@ -81,15 +95,7 @@ export function createApi(deps: {
               "Could not sign in. Check your credentials and email confirmation, or try again later.",
             );
           }
-          const sessionToken = crypto.randomUUID() + crypto.randomUUID();
-          await store.putSession({
-            hash: await hashToken(sessionToken),
-            account,
-            expiresAt: now() + SESSION_SECONDS * 1000,
-          });
-          response = json({ email: account.email }, 200, {
-            "Set-Cookie": cookie(sessionToken, SESSION_SECONDS),
-          });
+          response = await signIn(account);
         }
       } else {
         const session = token ? await store.getSession(hash) : undefined;

@@ -43,6 +43,30 @@ export function supabaseAdapters(config: SupabaseConfig): {
   const eq = encodeURIComponent;
   return {
     auth: {
+      async googleUrl(redirect, challenge) {
+        const settings = await call("/auth/v1/settings");
+        if (!settings.external?.google) throw new Error("Google is disabled");
+        const url = new URL("/auth/v1/authorize", config.SUPABASE_URL);
+        url.searchParams.set("provider", "google");
+        url.searchParams.set("redirect_to", redirect);
+        url.searchParams.set("code_challenge", challenge);
+        url.searchParams.set("code_challenge_method", "s256");
+        return url.href;
+      },
+      async exchangeGoogle(code, verifier) {
+        const result = await call("/auth/v1/token?grant_type=pkce", "POST", {
+          auth_code: code,
+          code_verifier: verifier,
+        });
+        if (typeof result.access_token !== "string")
+          throw new Error("Invalid identity");
+        const user = await call("/auth/v1/user", "GET", undefined, {
+          Authorization: `Bearer ${result.access_token}`,
+        });
+        if (typeof user?.id !== "string" || typeof user.email !== "string")
+          throw new Error("Invalid identity");
+        return { id: user.id, email: user.email };
+      },
       async signIn(email, password) {
         const result = await call(
           "/auth/v1/token?grant_type=password",

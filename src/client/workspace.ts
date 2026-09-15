@@ -1,7 +1,14 @@
 import type { Workspace } from "../server/contracts";
 import { mountDocuments } from "./documents";
+import { passwordVisibility } from "./password-field";
 
 export async function mountWorkspace(root: HTMLElement) {
+  const callback = new URL(location.href);
+  const googleCallback = callback.searchParams.get("oauth") === "google";
+  const callbackCode = callback.searchParams.get("code");
+  const callbackState = callback.searchParams.get("state");
+  // Remove provider codes before any further navigation or requests.
+  if (googleCallback) history.replaceState(null, "", "/app");
   root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Sign in to upload approved synthetic PDFs and inspect source-backed answers. Live AI requires operator configuration; private and sensitive files remain excluded.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden><div class="section-top"><h1>Your workspaces</h1><button id="signout">Sign out</button></div><form id="create-workspace"><label>Workspace name<input name="name" required maxlength="100" placeholder="e.g. Elm Street project"></label><button class="primary">Create workspace</button></form><div class="workspace-layout"><nav aria-label="Your workspaces" id="workspace-list"></nav><section id="workspace-detail"><h2>Select a workspace</h2><p>Group related documents for your research.</p></section></div></section></main>`;
   const status = root.querySelector<HTMLElement>("#account-status")!;
   const signin = root.querySelector<HTMLElement>("#signin")!;
@@ -29,6 +36,22 @@ export async function mountWorkspace(root: HTMLElement) {
   confirmation.append(confirmInput);
   const actions = loginForm.querySelector(".form-actions")!;
   actions.before(passwordHelp, confirmation);
+  const passwordControl = passwordVisibility(passwordInput, "password");
+  const confirmControl = passwordVisibility(confirmInput, "confirm password");
+  const google = document.createElement("button");
+  google.type = "button";
+  google.className = "google-signin";
+  google.textContent = "Continue with Google";
+  loginForm.before(google);
+  const divider = document.createElement("p");
+  divider.className = "auth-divider quiet";
+  divider.textContent = "or continue with email";
+  google.after(divider);
+  google.onclick = () =>
+    void action(async () => {
+      const result = await api<{ url: string }>("/auth/google", "POST");
+      location.assign(result.url);
+    });
   let authMode: "signin" | "signup" = "signin";
   function setAuthMode(mode: typeof authMode) {
     authMode = mode;
@@ -47,6 +70,9 @@ export async function mountWorkspace(root: HTMLElement) {
     else passwordInput.removeAttribute("aria-describedby");
     passwordHelp.hidden = !registering;
     confirmation.hidden = !registering;
+    confirmControl.wrapper.hidden = !registering;
+    passwordControl.reset();
+    confirmControl.reset();
     confirmInput.disabled = !registering;
     confirmInput.required = registering;
     passwordInput.value = "";
@@ -205,6 +231,16 @@ export async function mountWorkspace(root: HTMLElement) {
       });
     });
   try {
+    if (googleCallback) {
+      if (!callbackCode)
+        throw new Error(
+          "Google sign-in was cancelled or failed. Please try again.",
+        );
+      await api("/auth/google/complete", "POST", {
+        code: callbackCode,
+        state: callbackState,
+      });
+    }
     await api("/session");
     await loadWorkspaces();
     status.textContent = "";

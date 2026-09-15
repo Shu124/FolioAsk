@@ -16,6 +16,8 @@ export interface Session {
 export interface IdentityProvider {
   signIn(email: string, password: string): Promise<Account>;
   signUp(email: string, password: string): Promise<void>;
+  googleUrl?(redirect: string, challenge: string): Promise<string>;
+  exchangeGoogle?(code: string, verifier: string): Promise<Account>;
 }
 export interface Store {
   putSession(session: Session): Promise<void>;

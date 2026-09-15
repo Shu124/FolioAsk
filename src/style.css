@@ -16,6 +16,48 @@
   --border: #e1e7f0;
   --muted: #637084;
 }
+.account-page:has(#signin:not([hidden])) {
+  max-width: 620px;
+  margin: 48px auto;
+}
+#signin {
+  padding: clamp(20px, 5vw, 40px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 16px 60px #1738600c;
+}
+#signin h1 {
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.2;
+}
+#signin-form {
+  max-width: none;
+}
+.google-signin {
+  width: 100%;
+  font-weight: 600;
+  margin-top: 16px;
+}
+.auth-divider {
+  text-align: center;
+  font-size: 13px;
+}
+.password-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.password-field > button {
+  justify-self: end;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 0;
+  color: var(--blue);
+}
+.password-field[hidden] {
+  display: none;
+}
 .answer-panel {
   border-top: 1px solid var(--border);
   margin-top: 30px;
