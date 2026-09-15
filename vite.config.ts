@@ -5,6 +5,7 @@ import { createApi } from "./src/server/api.ts";
 import { SqliteStore } from "./src/server/sqlite-store.ts";
 import { supabaseAdapters } from "./src/server/supabase.ts";
 import { controlledProvider } from "./tests/fixtures/provider.ts";
+import { controlledIdentity } from "./tests/fixtures/identity.ts";
 import { freeGemini } from "./src/server/gemini.ts";
 
 export default defineConfig(({ mode }) => {
@@ -42,19 +43,7 @@ export default defineConfig(({ mode }) => {
                     .digest("hex"),
                 ],
               },
-              auth: {
-                async signIn(email, password) {
-                  if (
-                    !email.endsWith("@example.test") ||
-                    password !== "local-test-password"
-                  )
-                    throw new Error("Invalid fixture credentials");
-                  return { id: email, email };
-                },
-                async signUp() {
-                  throw new Error("Fixture accounts only");
-                },
-              },
+              auth: controlledIdentity(),
             });
           } else if (configured)
             api = createApi(

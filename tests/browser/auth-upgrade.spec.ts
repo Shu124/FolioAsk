@@ -32,14 +32,10 @@ test("password visibility is independent and resets when changing auth mode", as
   ).toBe(true);
 });
 
-test("Google unavailable leaves email login usable and callback errors remove codes", async ({
+test("Google callback failures leave email login usable and remove codes", async ({
   page,
 }) => {
   await page.goto("/app");
-  await page.getByRole("button", { name: "Continue with Google" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "Google sign-in is not configured",
-  );
   await expect(
     page.getByRole("button", { name: "Sign in", exact: true }),
   ).toBeEnabled();
@@ -48,7 +44,26 @@ test("Google unavailable leaves email login usable and callback errors remove co
   );
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole("status")).toContainText(
-    "Google sign-in is not configured",
+    "Google sign-in could not be completed",
   );
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+});
+
+test("Google callback creates a session that survives reload and can sign out", async ({
+  page,
+}) => {
+  await page.goto("/app");
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Your workspaces" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/app$/);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Your workspaces" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(
+    page.getByRole("button", { name: "Continue with Google" }),
+  ).toBeVisible();
 });
