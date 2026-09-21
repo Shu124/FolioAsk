@@ -18,6 +18,7 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
     .getByRole("navigation", { name: "Project navigation" })
     .getByRole("button", { name: "Documents", exact: true })
     .click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
@@ -83,6 +84,7 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   };
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles(file);
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible({

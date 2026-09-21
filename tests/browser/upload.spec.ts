@@ -18,6 +18,7 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
     .getByRole("navigation", { name: "Project navigation" })
     .getByRole("button", { name: "Documents", exact: true })
     .click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",

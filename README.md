@@ -1,5 +1,20 @@
 # FolioAsk
 
+## Document Trash migration
+
+Before deploying document management (#29), open your Supabase project → SQL Editor
+and run `supabase/migrations/004_document_trash.sql`, after migrations 001–003.
+This adds the owner-scoped Trash/Restore RPC and updates answer commits to reject
+sources moved to Trash during model generation. It does not delete stored files,
+embeddings, saved answers or usage counters. Trashed sources cannot be used for
+new questions; restore them from Documents → Trash before previewing or asking.
+
+Local SQLite development creates the required structures automatically. Automated
+tests exercise local persistence, not your live Supabase database. After applying
+the SQL, verify upload → Trash → blocked question → Restore with a synthetic PDF
+in your deployed preview, and confirm upload/answer allowances do not reset.
+Do not deploy this feature before applying its SQL migration.
+
 Ask questions across your documents and verify answers against the source.
 
 FolioAsk is a planned document research assistant for US construction, finance,

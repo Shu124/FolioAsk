@@ -18,6 +18,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .click();
   const nav = page.getByRole("navigation", { name: "Project navigation" });
   await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",

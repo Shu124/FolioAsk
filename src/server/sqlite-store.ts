@@ -101,6 +101,22 @@ export class SqliteStore
       .get(id, ownerId);
     return row ? JSON.parse(String(row.data)) : undefined;
   }
+  async setDocumentTrashed(
+    id: string,
+    ownerId: string,
+    trashed: boolean,
+    now: number,
+  ): Promise<DocumentRecord> {
+    const row = this.db
+      .prepare(
+        trashed
+          ? "UPDATE documents SET data=json_set(data,'$.deletedAt',coalesce(json_extract(data,'$.deletedAt'),?)) WHERE id=? AND owner_id=? RETURNING data"
+          : "UPDATE documents SET data=json_remove(data,'$.deletedAt') WHERE id=? AND owner_id=? RETURNING data",
+      )
+      .get(...(trashed ? [now, id, ownerId] : [id, ownerId]));
+    if (!row) throw new HttpError(404, "Document not found.");
+    return JSON.parse(String(row.data));
+  }
   async findUpload(
     ownerId: string,
     requestKey: string,
@@ -233,6 +249,19 @@ export class SqliteStore
   async commitAnswer(answer: AnswerRecord): Promise<AnswerRecord> {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      for (const id of answer.documentIds) {
+        const source = this.db
+          .prepare(
+            "SELECT data FROM documents WHERE id=? AND owner_id=? AND workspace_id=?",
+          )
+          .get(id, answer.ownerId, answer.workspaceId);
+        if (!source) throw new HttpError(404, "Selected document not found.");
+        if (JSON.parse(String(source.data)).deletedAt !== undefined)
+          throw new HttpError(
+            410,
+            "This document is in Trash. Restore it before asking a new question.",
+          );
+      }
       const row = this.db
         .prepare("SELECT data FROM answers WHERE owner_id=? AND request_key=?")
         .get(answer.ownerId, answer.requestKey);

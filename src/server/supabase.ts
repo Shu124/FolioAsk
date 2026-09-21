@@ -121,6 +121,15 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async setDocumentTrashed(id, ownerId, trashed, now) {
+        const result = await call(
+          "/rest/v1/rpc/folio_set_document_trashed",
+          "POST",
+          { p_id: id, p_owner: ownerId, p_trashed: trashed, p_now: now },
+        );
+        if (result.error) throw new HttpError(result.status, result.error);
+        return result.document as DocumentRecord;
+      },
       async deleteAccountSessions(ownerId) {
         await call(
           `/rest/v1/folio_sessions?owner_id=eq.${eq(ownerId)}`,

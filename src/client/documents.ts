@@ -3,6 +3,7 @@ import type { Citation } from "../server/answers";
 import { mountAnswers } from "./answers";
 import type { ConversationSummary } from "./conversations";
 import { sourceDrawer } from "./source-drawer";
+import { mountDocumentTable } from "./document-table";
 
 export type Api = <T>(
   path: string,
@@ -20,6 +21,18 @@ export function mountDocuments(
   root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet">Controlled pilot: public, non-sensitive, operator-approved fixtures only. No patient records, confidential files or specially regulated data. A checkbox is not proof of eligibility.</p><a href="/fixtures/contract.pdf" download class="citation">Download synthetic test PDF</a><p id="upload-usage"></p><form id="upload-form"><label>Choose PDF<input type="file" accept="application/pdf" required></label><button class="primary" type="submit">Upload PDF</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
   const status = root.querySelector<HTMLElement>("#upload-status")!;
   const form = root.querySelector<HTMLFormElement>("#upload-form")!;
+  form.hidden = true;
+  const add = document.createElement("button");
+  add.textContent = "Add document";
+  add.className = "primary";
+  add.setAttribute("aria-expanded", "false");
+  add.setAttribute("aria-controls", "upload-form");
+  form.before(add);
+  add.onclick = () => {
+    form.hidden = !form.hidden;
+    add.setAttribute("aria-expanded", String(!form.hidden));
+    if (!form.hidden) input.focus();
+  };
   const input = form.querySelector<HTMLInputElement>("input")!;
   const submit = form.querySelector<HTMLButtonElement>("button")!;
   const preview = root.querySelector<HTMLElement>("#document-preview")!;
@@ -51,6 +64,19 @@ export function mountDocuments(
     },
     onHistory,
   );
+  const tableRoot = root.querySelector<HTMLElement>("#document-buttons")!;
+  tableRoot.className = "document-table";
+  const table = mountDocumentTable(
+    tableRoot,
+    (id) => void openDocument(id),
+    async (document, trashed) => {
+      await api(
+        `/documents/${document.id}${trashed ? "" : "/restore"}`,
+        trashed ? "DELETE" : "POST",
+      );
+      await refresh();
+    },
+  );
   input.onchange = () => {
     retryKey = crypto.randomUUID();
   };
@@ -69,6 +95,10 @@ export function mountDocuments(
     try {
       const document = await api<DocumentRecord>(`/documents/${id}`);
       if (disposed || current !== sequence) return;
+      if (document.deletedAt !== undefined) {
+        status.textContent = `${document.name} is in Trash. Restore it from Documents to inspect this source. Saved answers are preserved.`;
+        return;
+      }
       const response = await fetch(`/api/documents/${id}/original`, {
         signal: download.signal,
       });
@@ -188,19 +218,14 @@ export function mountDocuments(
   }
   async function refresh() {
     const usage = await api<{ uploadsRemaining: number }>("/usage");
+    if (disposed) return;
     root.querySelector("#upload-usage")!.textContent =
       `${usage.uploadsRemaining} of 3 lifetime uploads remaining`;
     const documents = await api<DocumentRecord[]>(
       `/workspaces/${workspaceId}/documents`,
     );
-    const buttons = root.querySelector("#document-buttons")!;
-    buttons.replaceChildren();
-    for (const document of documents) {
-      const button = documentNode("button", document.name);
-      button.type = "button";
-      button.onclick = () => void openDocument(document.id);
-      buttons.append(button);
-    }
+    if (disposed) return;
+    table.setDocuments(documents);
     answers.setDocuments(documents);
   }
   form.onsubmit = (event) => {
@@ -277,6 +302,7 @@ export function mountDocuments(
     ready: Promise.all([refresh(), answers.refresh()]).then(() => {}),
     dispose() {
       disposed = true;
+      table.dispose();
       drawer.dispose();
       answers.dispose();
       sequence++;

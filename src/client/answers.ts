@@ -21,6 +21,7 @@ export function mountAnswers(
   let disposed = false;
   let pending = false;
   let answers: AnswerRecord[] = [];
+  let trashedIds = new Set<string>();
   let threadId: string | undefined =
     new URL(location.href).searchParams.get("thread") ?? undefined;
   const pickerLabel = document.createElement("label");
@@ -114,7 +115,7 @@ export function mountAnswers(
         const link = document.createElement("button");
         link.type = "button";
         link.className = "citation";
-        link.textContent = `Source · page ${citation.page}`;
+        link.textContent = `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`;
         link.onclick = () => {
           void onCitation(citation).catch(() => {
             status.textContent = "Could not open the source. Please retry.";
@@ -176,6 +177,14 @@ export function mountAnswers(
       disposed = true;
     },
     setDocuments(documents: DocumentRecord[]) {
+      trashedIds = new Set(
+        documents
+          .filter((document) => document.deletedAt !== undefined)
+          .map((document) => document.id),
+      );
+      documents = documents.filter(
+        (document) => document.deletedAt === undefined,
+      );
       const previous = selection.value;
       selection.replaceChildren();
       for (const document of documents) {
@@ -187,6 +196,7 @@ export function mountAnswers(
       if (documents.some((document) => document.id === previous))
         selection.value = previous;
       updateControls();
+      renderHistory();
     },
   };
 }

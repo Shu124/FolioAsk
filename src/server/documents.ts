@@ -23,6 +23,7 @@ export interface DocumentRecord {
   bytes: number;
   pages: SourcePage[];
   createdAt: number;
+  deletedAt?: number;
   classification: "public-approved";
 }
 export interface Usage {
@@ -32,6 +33,12 @@ export interface Usage {
   storedBytes: number;
 }
 export interface DocumentStore {
+  setDocumentTrashed(
+    id: string,
+    ownerId: string,
+    trashed: boolean,
+    now: number,
+  ): Promise<DocumentRecord>;
   getDocument(id: string, ownerId: string): Promise<DocumentRecord | undefined>;
   findUpload(
     ownerId: string,
@@ -249,11 +256,26 @@ export async function documentRoute(
     if (committed.id !== id) await blobs.delete(originalKey);
     return json(committed, committed.id === id ? 201 : 200);
   }
+  const mutation = path.match(/^\/documents\/([^/]+)(\/restore)?$/);
+  if (
+    mutation &&
+    ((!mutation[2] && request.method === "DELETE") ||
+      (mutation[2] && request.method === "POST"))
+  ) {
+    return json(
+      await store.setDocumentTrashed(mutation[1], ownerId, !mutation[2], now),
+    );
+  }
   const documentMatch = path.match(/^\/documents\/([^/]+)(\/original)?$/);
   if (documentMatch && request.method === "GET") {
     const document = await store.getDocument(documentMatch[1], ownerId);
     if (!document) throw new HttpError(404, "Document not found.");
     if (!documentMatch[2]) return json(document);
+    if (document.deletedAt !== undefined)
+      throw new HttpError(
+        410,
+        "This document is in Trash. Restore it from Documents first.",
+      );
     const bytes = await blobs.get(document.originalKey);
     if (!bytes) throw new HttpError(503, "Original temporarily unavailable.");
     return new Response(bytes.slice().buffer, {

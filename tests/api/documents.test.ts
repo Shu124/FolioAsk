@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { createApi } from "../../src/server/api.ts";
 import { SqliteStore } from "../../src/server/sqlite-store.ts";
 import { samplePdf, specialPdf } from "../fixtures/pdf.ts";
+import { controlledProvider } from "../fixtures/provider.ts";
+import type { ModelProvider } from "../../src/server/answers.ts";
 
-async function setup(approvedFiles: Uint8Array[]) {
+async function setup(
+  approvedFiles: Uint8Array[],
+  provider: ModelProvider = controlledProvider,
+) {
   const store = new SqliteStore(":memory:");
   const approvedHashes = await Promise.all(
     approvedFiles.map(async (file) =>
@@ -20,6 +25,7 @@ async function setup(approvedFiles: Uint8Array[]) {
       signUp: async () => {},
     },
     documents: { store, blobs: store, approvedHashes },
+    answers: { store, provider },
   });
   const request = (path: string, method = "GET", body?: unknown, cookie = "") =>
     api(
@@ -65,6 +71,151 @@ async function setup(approvedFiles: Uint8Array[]) {
     );
   return { store, request, login, alice, workspace, upload };
 }
+
+test("Trash is reversible, owner scoped and never resets lifetime allowances", async () => {
+  const pdf = await samplePdf();
+  const { store, request, login, alice, workspace, upload } = await setup([
+    pdf,
+  ]);
+  try {
+    const document = await (await upload(pdf)).json();
+    const path = `/documents/${document.id}`;
+    const ask = () =>
+      request(
+        `/workspaces/${workspace.id}/answers`,
+        "POST",
+        {
+          question: "When are shop drawings due?",
+          documentIds: [document.id],
+          requestKey: crypto.randomUUID(),
+        },
+        alice,
+      );
+    assert.equal((await ask()).status, 201);
+    const before = await (
+      await request("/usage", "GET", undefined, alice)
+    ).json();
+    const bob = await login("bob@example.test");
+    assert.equal((await request(path, "DELETE", undefined, bob)).status, 404);
+    assert.equal(
+      (await request(`${path}/restore`, "POST", {}, bob)).status,
+      404,
+    );
+    const removed = await request(path, "DELETE", undefined, alice);
+    assert.equal(removed.status, 200);
+    const deleted = await removed.json();
+    assert.ok(deleted.deletedAt);
+    assert.equal(
+      (await (await request(path, "DELETE", undefined, alice)).json())
+        .deletedAt,
+      deleted.deletedAt,
+    );
+    assert.equal(
+      (await request(`${path}/original`, "GET", undefined, alice)).status,
+      410,
+    );
+    assert.equal((await ask()).status, 410);
+    assert.equal(
+      (
+        await (
+          await request(
+            `/workspaces/${workspace.id}/answers`,
+            "GET",
+            undefined,
+            alice,
+          )
+        ).json()
+      ).length,
+      1,
+    );
+    assert.deepEqual(
+      await (await request("/usage", "GET", undefined, alice)).json(),
+      before,
+    );
+    assert.equal(
+      (await request(`${path}/restore`, "POST", {}, alice)).status,
+      200,
+    );
+    assert.equal(
+      (await request(`${path}/restore`, "POST", {}, alice)).status,
+      200,
+    );
+    assert.equal(
+      (await request(`${path}/original`, "GET", undefined, alice)).status,
+      200,
+    );
+    assert.deepEqual(
+      await (await request("/usage", "GET", undefined, alice)).json(),
+      before,
+    );
+    assert.equal((await ask()).status, 201);
+  } finally {
+    store.close();
+  }
+});
+
+test("deleting a source during model generation prevents a new saved answer and charge", async () => {
+  const pdf = await samplePdf();
+  let started!: () => void;
+  let finish!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const release = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const provider: ModelProvider = {
+    ...controlledProvider,
+    async answer(...args) {
+      started();
+      await release;
+      return controlledProvider.answer(...args);
+    },
+  };
+  const { store, request, alice, workspace, upload } = await setup(
+    [pdf],
+    provider,
+  );
+  try {
+    const document = await (await upload(pdf)).json();
+    const pending = request(
+      `/workspaces/${workspace.id}/answers`,
+      "POST",
+      {
+        question: "When are shop drawings due?",
+        documentIds: [document.id],
+        requestKey: crypto.randomUUID(),
+      },
+      alice,
+    );
+    await entered;
+    assert.equal(
+      (await request(`/documents/${document.id}`, "DELETE", undefined, alice))
+        .status,
+      200,
+    );
+    finish();
+    assert.equal((await pending).status, 410);
+    assert.equal(
+      (await (await request("/usage", "GET", undefined, alice)).json()).answers,
+      0,
+    );
+    assert.deepEqual(
+      await (
+        await request(
+          `/workspaces/${workspace.id}/answers`,
+          "GET",
+          undefined,
+          alice,
+        )
+      ).json(),
+      [],
+    );
+  } finally {
+    finish();
+    store.close();
+  }
+});
 
 test("owned text PDF upload preserves original, page evidence and remaining allowance", async () => {
   const pdf = await samplePdf();

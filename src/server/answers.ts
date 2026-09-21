@@ -276,6 +276,11 @@ export async function answerRoute(
   );
   if (!document || document.workspaceId !== workspaceId)
     throw new HttpError(404, "Selected document not found.");
+  if (document.deletedAt !== undefined)
+    throw new HttpError(
+      410,
+      "This document is in Trash. Restore it before asking a new question.",
+    );
   if (
     document.classification !== "public-approved" ||
     !documents.approvedHashes.includes(document.contentHash)
@@ -308,12 +313,10 @@ export async function answerRoute(
     : [];
   if (threadId && !conversation.length)
     throw new HttpError(404, "Conversation not found.");
-  const history: ConversationTurn[] = conversation
-    .slice(-4)
-    .map((answer) => ({
-      question: answer.question.slice(0, 1000),
-      text: answer.text.slice(0, 2000),
-    }));
+  const history: ConversationTurn[] = conversation.slice(-4).map((answer) => ({
+    question: answer.question.slice(0, 1000),
+    text: answer.text.slice(0, 2000),
+  }));
   if ((await documents.store.usage(ownerId)).answers >= 20)
     throw new HttpError(
       429,

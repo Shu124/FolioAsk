@@ -40,6 +40,78 @@
   display: grid;
   gap: 16px;
 }
+.table-tools {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.table-tools label {
+  flex: 1 1 170px;
+}
+.table-tools input,
+.table-tools select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+.section-tabs {
+  display: flex;
+  gap: 6px;
+}
+.section-tabs button[aria-pressed="true"] {
+  background: #dce8ff;
+  border-color: #b8cef7;
+  color: #184cc2;
+  font-weight: 700;
+  box-shadow: inset 0 -3px #225de0;
+}
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.table-scroll th,
+.table-scroll td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.table-scroll th {
+  background: #f2f5fa;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.table-document-name {
+  border: 0;
+  padding: 0;
+  color: var(--blue);
+  text-align: left;
+  overflow-wrap: anywhere;
+  min-width: 120px;
+}
+.table-empty {
+  text-align: center;
+  color: var(--muted);
+  height: 140px;
+}
+:root[data-theme="dark"] .table-scroll th {
+  background: #172235;
+}
+:root[data-theme="dark"] .section-tabs button[aria-pressed="true"] {
+  background: #263f68;
+  color: #d9e7ff;
+  border-color: #4b6fa6;
+}
 .account-page:has(.project-shell) {
   max-width: 1600px;
   margin: 24px auto;
