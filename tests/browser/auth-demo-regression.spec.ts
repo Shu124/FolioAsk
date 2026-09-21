@@ -46,7 +46,7 @@ test("registration validates passwords, confirms submission and recovers from fa
     });
   });
   await page.goto("/");
-  await page.getByRole("link", { name: "Create account", exact: true }).click();
+  await page.getByRole("link", { name: "Get started", exact: true }).click();
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Create your FolioAsk account" }),
