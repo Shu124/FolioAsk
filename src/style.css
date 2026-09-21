@@ -138,95 +138,8 @@
 .password-field[hidden] {
   display: none;
 }
-.project-shell {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 32px;
-}
-.project-sidebar {
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  align-self: start;
-  position: sticky;
-  top: 16px;
-}
-.project-sidebar select {
-  width: 100%;
-  padding: 10px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.project-sidebar nav {
-  display: grid;
-  gap: 8px;
-  margin: 24px 0;
-}
-.project-sidebar button {
-  text-align: left;
-}
-.project-sidebar [aria-current="page"] {
-  background: #eaf0ff;
-  color: #225de0;
-  border-color: #225de0;
-}
-.project-content {
-  min-width: 0;
-}
-#project-title,
-#profile-email {
-  overflow-wrap: anywhere;
-}
-.recent-conversations {
-  display: grid;
-  gap: 12px;
-}
-.recent-conversations button {
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.answer-panel > label select {
-  width: 100%;
-  padding: 10px;
-  font: inherit;
-  margin-bottom: 12px;
-}
-#project-onboarding {
-  max-width: 560px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-bottom: 24px;
-}
-#project-form {
-  display: grid;
-  gap: 16px;
-}
-.evidence-workspace[data-view="documents"] {
-  display: block;
-}
 [hidden] {
   display: none !important;
-}
-@media (max-width: 760px) {
-  .project-shell {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-  }
-  .project-sidebar {
-    position: static;
-    padding: 12px;
-  }
-  .project-sidebar nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 12px 0;
-  }
-}
-.answer-panel {
-  border-top: 1px solid var(--border);
-  margin-top: 30px;
-  padding-top: 24px;
 }
 @media (min-width: 1100px) {
   .account-page {
@@ -235,28 +148,11 @@
   .workspace-layout {
     grid-template-columns: 180px minmax(0, 1fr);
   }
-  .evidence-workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    gap: 24px;
-    align-items: start;
-  }
   .evidence-workspace .upload-section {
     margin: 0;
     padding: 0;
     border-top: 0;
     min-width: 0;
-  }
-  .evidence-workspace > div {
-    min-width: 0;
-    position: sticky;
-    top: 20px;
-  }
-  .evidence-workspace .answer-panel {
-    margin: 0;
-    padding: 0 0 0 20px;
-    border-top: 0;
-    border-left: 1px solid var(--border);
   }
   #upload-form label {
     min-width: 0;

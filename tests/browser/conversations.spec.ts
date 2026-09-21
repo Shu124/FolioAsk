@@ -69,4 +69,18 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await page.getByLabel("Your question").fill("A new shop drawings question");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(4);
+  await expect
+    .poll(() =>
+      page
+        .locator("#answer-history")
+        .evaluate(
+          (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+        ),
+    )
+    .toBeLessThan(2);
+  expect(
+    await page
+      .locator("#answer-history")
+      .evaluate((node) => node.scrollHeight > node.clientHeight),
+  ).toBe(true);
 });

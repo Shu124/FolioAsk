@@ -124,6 +124,10 @@ export function mountAnswers(
       }
       history.append(card);
     }
+    // A dashboard selection becomes visible after this synchronous render.
+    requestAnimationFrame(() => {
+      if (!disposed) history.scrollTop = history.scrollHeight;
+    });
   }
   form.onsubmit = (event) => {
     event.preventDefault();
