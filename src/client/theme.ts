@@ -1,3 +1,4 @@
+import { labelWithIcon } from "./icons";
 export type Theme = "light" | "dark" | "system";
 const key = "folioask-theme";
 const media = matchMedia("(prefers-color-scheme: dark)");
@@ -41,10 +42,12 @@ export function mountTheme(root: HTMLElement, shortcut: HTMLButtonElement) {
   select.setAttribute("aria-label", "Theme");
   const sync = () => {
     select.value = preference;
-    shortcut.textContent =
-      document.documentElement.dataset.theme === "dark"
-        ? "Switch to light mode"
-        : "Switch to dark mode";
+    const dark = document.documentElement.dataset.theme === "dark";
+    labelWithIcon(
+      shortcut,
+      dark ? "Sun" : "Moon",
+      dark ? "Switch to light mode" : "Switch to dark mode",
+    );
   };
   select.onchange = () => {
     if (valid(select.value)) setTheme(select.value);

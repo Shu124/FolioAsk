@@ -1,3 +1,4 @@
+import { labelWithIcon } from "./icons";
 /** Keep visibility controls outside the label so the input's accessible name is stable. */
 export function passwordVisibility(input: HTMLInputElement, name: string) {
   const label = input.closest("label")!;
@@ -9,14 +10,20 @@ export function passwordVisibility(input: HTMLInputElement, name: string) {
   button.type = "button";
   const reset = () => {
     input.type = "password";
-    button.textContent = `Show ${name}`;
+    labelWithIcon(button, "Eye", `Show ${name}`);
+    button.title = `Show ${name}`;
     button.setAttribute("aria-pressed", "false");
   };
   button.onclick = () => {
     const showing = input.type === "password";
     input.type = showing ? "text" : "password";
-    button.textContent = `${showing ? "Hide" : "Show"} ${name}`;
+    labelWithIcon(
+      button,
+      showing ? "EyeOff" : "Eye",
+      `${showing ? "Hide" : "Show"} ${name}`,
+    );
     button.setAttribute("aria-pressed", String(showing));
+    button.title = `${showing ? "Hide" : "Show"} ${name}`;
   };
   wrapper.append(button);
   reset();

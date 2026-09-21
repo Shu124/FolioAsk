@@ -1,5 +1,6 @@
 import { mountProjects } from "./projects";
 import { passwordVisibility } from "./password-field";
+import { labelWithIcon } from "./icons";
 
 export async function mountWorkspace(root: HTMLElement) {
   const callback = new URL(location.href);
@@ -11,6 +12,32 @@ export async function mountWorkspace(root: HTMLElement) {
   root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Sign in to upload approved synthetic PDFs and inspect source-backed answers. Live AI requires operator configuration; private and sensitive files remain excluded.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden></section></main>`;
   const status = root.querySelector<HTMLElement>("#account-status")!;
   const signin = root.querySelector<HTMLElement>("#signin")!;
+  root.classList.add("workspace-app");
+  const brand = root.querySelector<HTMLElement>(".brand")!;
+  brand.innerHTML =
+    '<span class="brand-icon" aria-hidden="true">F</span><span>FolioAsk</span>';
+  labelWithIcon(
+    root.querySelector<HTMLElement>(".site-header > a:last-child")!,
+    "Source",
+    "Back to guided demo",
+  );
+  signin
+    .querySelector("h1")!
+    .before(
+      Object.assign(document.createElement("p"), {
+        className: "auth-kicker eyebrow",
+        textContent: "WELCOME TO FOLIOASK",
+      }),
+    );
+  signin.querySelector("h1")!.nextElementSibling!.textContent =
+    "One workspace for your documents, conversations and the evidence behind every answer.";
+  signin.append(
+    Object.assign(document.createElement("p"), {
+      className: "auth-boundary quiet",
+      textContent:
+        "Controlled pilot: approved synthetic PDFs only. No private, patient or sensitive data. Live AI requires operator configuration.",
+    }),
+  );
   const home = root.querySelector<HTMLElement>("#workspace-home")!;
   const loginForm = root.querySelector<HTMLFormElement>("#signin-form")!;
   const authHeading = signin.querySelector("h1")!;
@@ -38,7 +65,8 @@ export async function mountWorkspace(root: HTMLElement) {
   const google = document.createElement("button");
   google.type = "button";
   google.className = "google-signin";
-  google.textContent = "Continue with Google";
+  google.innerHTML =
+    '<span class="google-mark" aria-hidden="true">G</span><span>Continue with Google</span>';
   loginForm.before(google);
   const divider = document.createElement("p");
   divider.className = "auth-divider quiet";
@@ -56,7 +84,11 @@ export async function mountWorkspace(root: HTMLElement) {
     authHeading.textContent = registering
       ? "Create your FolioAsk account"
       : "Sign in to your workspace";
-    submitAuth.textContent = registering ? "Create account" : "Sign in";
+    labelWithIcon(
+      submitAuth,
+      registering ? "User" : "Lock",
+      registering ? "Create account" : "Sign in",
+    );
     toggleAuth.textContent = registering ? "Back to sign in" : "Create account";
     passwordInput.autocomplete = registering
       ? "new-password"

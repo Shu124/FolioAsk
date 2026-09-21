@@ -1,6 +1,7 @@
 import type { ProjectActivity } from "../server/activity";
 import type { Api } from "./documents";
 import { trackActiveTime } from "./active-time";
+import { icon, labelWithIcon } from "./icons";
 
 export function mountDashboard(
   root: HTMLElement,
@@ -11,6 +12,23 @@ export function mountDashboard(
   root.innerHTML = `<div class="workspace-toolbar"><div><p class="eyebrow">PROJECT OVERVIEW</p><h2>Dashboard</h2></div><button>Refresh activity</button></div><p role="status" class="dashboard-status">Loading activity…</p><div class="dashboard-data" hidden></div><p class="quiet time-note">Approximate active time starts when this feature is used. Foreground use only; pauses after 60 seconds without interaction. Not time saved or a productivity score. Shared 15-second intervals count once across tabs and belong to the first project reporting them.</p>`;
   const data = root.querySelector<HTMLElement>(".dashboard-data")!;
   const status = root.querySelector<HTMLElement>(".dashboard-status")!;
+  const header = root.querySelector<HTMLElement>(".workspace-toolbar")!;
+  header.className = "page-heading";
+  header.querySelector("h2")!.after(
+    Object.assign(document.createElement("p"), {
+      className: "page-description",
+      textContent:
+        "A clear view of your documents, conversations and recent work.",
+    }),
+  );
+  labelWithIcon(header.querySelector("button")!, "Refresh", "Refresh activity");
+  const timeNote = root.querySelector<HTMLElement>(".time-note")!;
+  const methodology = document.createElement("details");
+  methodology.className = "method-note";
+  const summary = document.createElement("summary");
+  summary.textContent = "How active time is measured";
+  timeNote.before(methodology);
+  methodology.append(summary, timeNote);
   const stopTracking = trackActiveTime(workspaceId, api, () => {
     status.textContent =
       "Active-time sync is temporarily unavailable. Recorded totals may be incomplete.";
@@ -27,22 +45,29 @@ export function mountDashboard(
     const metrics = element("div");
     metrics.className = "metric-grid";
     const seconds = Math.floor(result.activeTime.milliseconds / 1000);
-    for (const [label, value] of [
-      ["Active documents", result.counts.documents],
-      ["Saved answers", result.counts.answers],
-      ["Conversations", result.counts.conversations],
+    for (const [label, glyph, value] of [
+      ["Active documents", "Documents", result.counts.documents],
+      ["Saved answers", "Check", result.counts.answers],
+      ["Conversations", "Chat", result.counts.conversations],
       [
         "Approximate active time",
+        "Clock",
         seconds < 60
           ? `${seconds}s`
           : `${Math.floor(seconds / 60)}m ${seconds % 60}s`,
       ],
-    ]) {
+    ] as const) {
       const card = element("section");
       card.className = "metric-card";
       const number = element("strong", String(value));
       number.setAttribute("aria-label", String(label));
-      card.append(element("p", String(label)), number);
+      const metricHeading = element("div");
+      metricHeading.className = "metric-heading";
+      const glyphNode = element("span");
+      glyphNode.className = "metric-icon";
+      glyphNode.innerHTML = icon(glyph);
+      metricHeading.append(element("p", label), glyphNode);
+      card.append(metricHeading, number);
       metrics.append(card);
     }
     data.append(
@@ -58,9 +83,15 @@ export function mountDashboard(
       element("h3", "Last 7 days"),
       element("p", "Uploads and saved answers · UTC calendar days"),
     );
+    const legend = element("div");
+    legend.className = "chart-legend";
+    legend.innerHTML =
+      '<span><i class="legend-upload"></i>Uploads</span><span><i class="legend-answer"></i>Answers</span>';
+    chart.append(legend);
     const bars = element("div");
     bars.className = "activity-chart";
     bars.setAttribute("role", "img");
+    bars.tabIndex = 0;
     bars.setAttribute(
       "aria-label",
       "Seven-day uploads and answers. Exact values are in the activity data table below.",
@@ -81,7 +112,14 @@ export function mountDashboard(
       column.className = "activity-column";
       const bar = element("div");
       bar.className = "activity-bar";
-      bar.style.height = `${((day.uploads + day.answers) / maximum) * 100}px`;
+      bar.style.height = `${((day.uploads + day.answers) / maximum) * 150}px`;
+      const uploadSegment = element("span");
+      uploadSegment.className = "bar-uploads";
+      const answerSegment = element("span");
+      answerSegment.className = "bar-answers";
+      uploadSegment.style.flex = String(day.uploads);
+      answerSegment.style.flex = String(day.answers);
+      bar.append(answerSegment, uploadSegment);
       column.append(
         element("span", String(day.uploads + day.answers)),
         bar,
@@ -110,7 +148,9 @@ export function mountDashboard(
         ? "Document"
         : "Conversation";
       row.insertCell().textContent = new Date(item.at).toLocaleString();
-      const button = element("button", item.label);
+      const button = element("button");
+      button.className = "activity-link";
+      labelWithIcon(button, item.documentId ? "Documents" : "Chat", item.label);
       button.onclick = () => open(item);
       row.insertCell().append(button);
     }

@@ -2,6 +2,7 @@ import type { AnswerRecord, Citation } from "../server/answers";
 import type { DocumentRecord } from "../server/documents";
 import type { Api } from "./documents";
 import { conversations, type ConversationSummary } from "./conversations";
+import { icon, labelWithIcon } from "./icons";
 
 export function mountAnswers(
   root: HTMLElement,
@@ -17,6 +18,21 @@ export function mountAnswers(
   const button = form.querySelector<HTMLButtonElement>("button")!;
   const status = root.querySelector<HTMLElement>("#question-status")!;
   const history = root.querySelector<HTMLElement>("#answer-history")!;
+  const heading = root.querySelector<HTMLElement>("h3")!;
+  heading.before(
+    Object.assign(document.createElement("p"), {
+      className: "eyebrow",
+      textContent: "SOURCE-BACKED CONVERSATIONS",
+    }),
+  );
+  root
+    .querySelector<HTMLElement>(".answer-panel > .quiet")!
+    .classList.add("page-description");
+  labelWithIcon(button, "Send", "Ask selected document");
+  root.querySelector<HTMLElement>(
+    ".answer-panel > .quiet:last-child",
+  )!.textContent =
+    "Verify cited passages before relying on an answer. Successful answers use your pilot allowance; failed requests do not.";
   let requestKey = crypto.randomUUID();
   let disposed = false;
   let pending = false;
@@ -31,8 +47,11 @@ export function mountAnswers(
   pickerLabel.append(picker);
   const newChat = document.createElement("button");
   newChat.type = "button";
-  newChat.textContent = "New chat";
-  history.before(pickerLabel, newChat);
+  labelWithIcon(newChat, "Plus", "New chat");
+  const conversationToolbar = document.createElement("div");
+  conversationToolbar.className = "conversation-toolbar";
+  conversationToolbar.append(pickerLabel, newChat);
+  history.before(conversationToolbar);
   function rememberThread() {
     const url = new URL(location.href);
     if (threadId) url.searchParams.set("thread", threadId);
@@ -108,14 +127,21 @@ export function mountAnswers(
         answer.providerMode === "simulated"
           ? "Simulated provider · Not live AI"
           : "Gemini answer · Verify the evidence";
+      const assistantLabel = document.createElement("div");
+      assistantLabel.className = "assistant-label";
+      assistantLabel.innerHTML = `${icon("Chat")}<strong>FolioAsk</strong>`;
       const text = document.createElement("p");
       text.textContent = answer.text;
-      card.append(heading, label, text);
+      card.append(heading, assistantLabel, label, text);
       for (const citation of answer.citations) {
         const link = document.createElement("button");
         link.type = "button";
         link.className = "citation";
-        link.textContent = `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`;
+        labelWithIcon(
+          link,
+          "Source",
+          `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`,
+        );
         link.onclick = () => {
           void onCitation(citation).catch(() => {
             status.textContent = "Could not open the source. Please retry.";

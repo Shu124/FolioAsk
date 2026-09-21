@@ -1,6 +1,7 @@
 import type { Account, Workspace } from "../server/contracts";
 import type { Api } from "./documents";
 import { passwordVisibility } from "./password-field";
+import { labelWithIcon } from "./icons";
 
 export function mountSettings(
   root: HTMLElement,
@@ -10,7 +11,7 @@ export function mountSettings(
   reauthenticate: (message: string) => void,
   appearance: HTMLElement,
 ) {
-  root.innerHTML = `<section><h3>Account</h3><p id="profile-email"></p><p id="profile-providers" class="quiet"></p><form id="profile-form"><label>Display name<input name="name" required maxlength="100"></label><button>Save name</button></form><p role="status" aria-label="Account settings status" id="settings-status"></p></section><section><h3>Project</h3><form id="rename-form"><label>Rename project<input name="name" required maxlength="100"></label><button>Save project name</button></form></section><section><h3>Plan and usage</h3><p>Controlled free pilot</p><p id="settings-usage">Loading usage…</p><p class="quiet">Public, non-sensitive, operator-approved fixtures only. No paid subscription is active.</p></section><section id="password-settings" hidden><h3>Change password</h3><p class="quiet">Changing your password signs out all FolioAsk sessions.</p><form id="password-form"><label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required maxlength="256"></label><label>New password<input type="password" name="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password<input type="password" name="confirm" autocomplete="new-password" required minlength="12" maxlength="256"></label><button>Change password</button></form></section>`;
+  root.innerHTML = `<section><h3>Account</h3><p id="profile-email"></p><p id="profile-providers" class="quiet"></p><form id="profile-form"><label>Display name<input name="name" required maxlength="100"></label><button>Save name</button></form><p role="status" aria-label="Account settings status" id="settings-status"></p></section><section><h3>Project</h3><form id="rename-form"><label>Rename project<input name="name" required maxlength="100"></label><button>Save project name</button></form></section><section><h3>Plan and usage</h3><p class="badge">Controlled free pilot</p><div id="settings-usage">Loading usage…</div><p class="quiet">Public, non-sensitive, operator-approved fixtures only. No paid subscription is active.</p></section><section id="password-settings" hidden><h3>Change password</h3><p class="quiet">Changing your password signs out all FolioAsk sessions.</p><form id="password-form"><label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required maxlength="256"></label><label>New password<input type="password" name="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password<input type="password" name="confirm" autocomplete="new-password" required minlength="12" maxlength="256"></label><button>Change password</button></form></section>`;
   let disposed = false;
   const status = root.querySelector<HTMLElement>("#settings-status")!;
   const [accountSection, projectSection, usageSection, passwordSection] = [
@@ -41,12 +42,18 @@ export function mountSettings(
     }
     if (name === "Usage") void refreshUsage();
   };
+  const sectionIcons = {
+    Account: "User",
+    Project: "Folder",
+    Appearance: "Palette",
+    Usage: "Usage",
+  } as const;
   for (const name of Object.keys(sections) as (keyof typeof sections)[]) {
     const panel = sections[name];
     panel.classList.add("settings-panel");
     root.append(panel);
     const button = document.createElement("button");
-    button.textContent = name;
+    labelWithIcon(button, sectionIcons[name], name);
     button.onclick = () => selectSection(name);
     navigation.append(button);
   }
@@ -60,6 +67,27 @@ export function mountSettings(
   const profileForm = root.querySelector<HTMLFormElement>("#profile-form")!;
   const renameForm = root.querySelector<HTMLFormElement>("#rename-form")!;
   const passwordForm = root.querySelector<HTMLFormElement>("#password-form")!;
+  labelWithIcon(profileForm.querySelector("button")!, "Save", "Save name");
+  labelWithIcon(
+    renameForm.querySelector("button")!,
+    "Save",
+    "Save project name",
+  );
+  labelWithIcon(
+    passwordForm.querySelector('button:not([type="button"])')!,
+    "Lock",
+    "Change password",
+  );
+  for (const [section, description] of [
+    [accountSection, "Your profile information and sign-in methods."],
+    [projectSection, "Keep a clear, recognizable name for this project."],
+    [usageSection, "Your real usage across the controlled free pilot."],
+  ] as const) {
+    const text = document.createElement("p");
+    text.className = "page-description";
+    text.textContent = description;
+    section.querySelector("h3")!.after(text);
+  }
   renameForm.querySelector("input")!.value = project.name;
   const profileName = profileForm.querySelector("input")!;
   profileName.disabled = true;
@@ -157,9 +185,42 @@ export function mountSettings(
         answersRemaining: number;
         storedBytes: number;
       }>("/usage");
-      if (!disposed)
-        root.querySelector("#settings-usage")!.textContent =
-          `${usage.uploadsRemaining} of 3 lifetime uploads remaining · ${usage.answersRemaining} of 20 lifetime answers remaining · ${(usage.storedBytes / 1_000_000).toFixed(2)} MB stored`;
+      if (!disposed) {
+        const summary = root.querySelector("#settings-usage")!;
+        summary.replaceChildren();
+        for (const [name, glyph, value, detail] of [
+          [
+            "Document uploads",
+            "Documents",
+            usage.uploadsRemaining,
+            `${usage.uploadsRemaining} of 3 lifetime uploads remaining`,
+          ],
+          [
+            "AI answers",
+            "Chat",
+            usage.answersRemaining,
+            `${usage.answersRemaining} of 20 lifetime answers remaining`,
+          ],
+          [
+            "Stored files",
+            "Folder",
+            `${(usage.storedBytes / 1_000_000).toFixed(2)} MB`,
+            `${(usage.storedBytes / 1_000_000).toFixed(2)} MB stored`,
+          ],
+        ] as const) {
+          const card = document.createElement("section");
+          card.className = "usage-card";
+          const label = document.createElement("p");
+          labelWithIcon(label, glyph, name);
+          const number = document.createElement("strong");
+          number.textContent = String(value);
+          const description = document.createElement("p");
+          description.className = "quiet";
+          description.textContent = detail;
+          card.append(label, number, description);
+          summary.append(card);
+        }
+      }
     } catch {
       if (!disposed)
         root.querySelector("#settings-usage")!.textContent =

@@ -15,14 +15,14 @@
   align-self: stretch;
 }
 .demo-project-name {
-  font-size: 12px;
+  font-size: 0.875rem;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 .demo-body {
   padding: 28px;
   min-width: 0;
-  background: white;
+  background: var(--surface);
 }
 .demo-body h3 {
   margin: 0 0 16px;
@@ -31,17 +31,17 @@
   gap: 16px;
 }
 .demo-body .workspace-toolbar .secondary {
-  font-size: 11px;
+  font-size: 0.875rem;
   padding: 10px 14px;
 }
 .demo-body .workspace-toolbar > .eyebrow {
-  font-size: 8px;
+  font-size: 0.875rem;
   letter-spacing: 0.08em;
 }
 .demo-thread-title {
   padding: 12px;
-  background: #f2f5fa;
-  font-size: 11px;
+  background: var(--subtle);
+  font-size: 0.875rem;
   border-radius: 8px;
 }
 .demo-message-history {
@@ -55,7 +55,7 @@
 }
 .demo-composer label,
 .demo-composer p {
-  font-size: 11px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 .demo-composer select {
@@ -67,15 +67,15 @@
   border-radius: 6px;
 }
 .demo-composer .primary {
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .demo-body .table-scroll td,
 .demo-body .table-scroll th {
   padding: 12px;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .demo-body .table-scroll button {
-  font-size: 11px;
+  font-size: 0.875rem;
   text-align: left;
 }
 .demo-body .metric-grid {
@@ -85,10 +85,10 @@
   padding: 14px;
 }
 .demo-body .metric-card p {
-  font-size: 10px;
+  font-size: 0.875rem;
 }
 .demo-body .metric-card .demo-untracked {
-  font-size: 17px;
+  font-size: 1.0625rem;
   letter-spacing: -0.02em;
 }
 .demo-body .activity-chart-card {
@@ -99,12 +99,6 @@
 }
 .demo-section > .source-drawer .paper {
   margin: 0;
-}
-:root[data-theme="dark"] .demo-body {
-  background: #101827;
-}
-:root[data-theme="dark"] .demo-thread-title {
-  background: #243650;
 }
 @media (max-width: 900px) {
   .demo-grid {
@@ -124,11 +118,11 @@
     min-height: auto;
   }
   .demo-sidebar nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .demo-sidebar nav button {
     padding: 10px 6px;
-    font-size: 11px;
+    font-size: 0.875rem;
     gap: 6px;
   }
   .demo-sidebar nav .nav-icon {
@@ -147,4 +141,34 @@
   .demo-body .table-tools {
     margin-bottom: 16px;
   }
+}
+.demo-thread-title {
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+.demo-body .workspace-toolbar > .eyebrow {
+  font-size: 0.75rem;
+}
+.demo-body .metric-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.demo-body .metric-card p {
+  min-height: 2.75rem;
+  margin-bottom: 0.75rem;
+}
+.demo-body .activity-bar {
+  background: var(--blue);
+}
+.demo-body .activity-column:last-child .activity-bar {
+  background: #27a693;
+}
+.demo-body > section > h3 {
+  font-size: 1.75rem;
+}
+.demo-body .workspace-toolbar h3 {
+  margin-bottom: 0;
+  font-size: 1.75rem;
+}
+.demo-body .table-scroll button {
+  min-width: 120px;
 }

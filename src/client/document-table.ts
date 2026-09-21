@@ -1,4 +1,5 @@
 import type { DocumentRecord } from "../server/documents";
+import { labelWithIcon } from "./icons";
 
 export function mountDocumentTable(
   root: HTMLElement,
@@ -13,6 +14,9 @@ export function mountDocumentTable(
   const tabs = [
     ...root.querySelectorAll<HTMLButtonElement>(".section-tabs button"),
   ];
+  labelWithIcon(tabs[0], "Documents", "Active");
+  labelWithIcon(tabs[1], "Trash", "Trash");
+  search.placeholder = "Search by document name…";
   let documents: DocumentRecord[] = [];
   let trash = false;
   let busy = false;
@@ -35,16 +39,28 @@ export function mountDocumentTable(
       const row = body.insertRow();
       const open = window.document.createElement("button");
       open.className = "table-document-name";
-      open.textContent = document.name;
+      labelWithIcon(open, "Documents", document.name);
       open.onclick = () => preview(document.id);
       row.insertCell().append(open);
       row.insertCell().textContent = new Date(
         document.createdAt,
       ).toLocaleString();
       row.insertCell().textContent = String(document.pages.length);
-      row.insertCell().textContent = trash ? "In Trash" : "Ready";
+      const badge = window.document.createElement("span");
+      badge.className = `status-pill ${trash ? "" : "status-ready"}`;
+      labelWithIcon(
+        badge,
+        trash ? "Trash" : "Check",
+        trash ? "In Trash" : "Ready",
+      );
+      row.insertCell().append(badge);
       const action = window.document.createElement("button");
-      action.textContent = trash ? "Restore" : "Move to Trash";
+      labelWithIcon(
+        action,
+        trash ? "Restore" : "Trash",
+        trash ? "Restore" : "Move to Trash",
+      );
+      action.className = "table-action";
       action.setAttribute(
         "aria-label",
         trash ? `Restore ${document.name}` : `Move ${document.name} to Trash`,

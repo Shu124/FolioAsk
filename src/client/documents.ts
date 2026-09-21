@@ -4,6 +4,7 @@ import { mountAnswers } from "./answers";
 import type { ConversationSummary } from "./conversations";
 import { sourceDrawer } from "./source-drawer";
 import { mountDocumentTable } from "./document-table";
+import { labelWithIcon } from "./icons";
 
 export type Api = <T>(
   path: string,
@@ -23,11 +24,32 @@ export function mountDocuments(
   const form = root.querySelector<HTMLFormElement>("#upload-form")!;
   form.hidden = true;
   const add = document.createElement("button");
-  add.textContent = "Add document";
+  labelWithIcon(add, "Plus", "Add document");
   add.className = "primary";
   add.setAttribute("aria-expanded", "false");
   add.setAttribute("aria-controls", "upload-form");
-  form.before(add);
+  const sectionTitle = root.querySelector<HTMLElement>(".upload-section > h3")!;
+  const heading = document.createElement("header");
+  heading.className = "page-heading";
+  const introduction = document.createElement("div");
+  introduction.innerHTML = '<p class="eyebrow">YOUR SOURCE LIBRARY</p>';
+  sectionTitle.before(heading);
+  introduction.append(sectionTitle);
+  const description = document.createElement("p");
+  description.className = "page-description";
+  description.textContent =
+    "Keep your project documents organized and ready to explore.";
+  introduction.append(description);
+  heading.append(introduction, add);
+  const policy = root.querySelector<HTMLElement>(".upload-section > .quiet")!;
+  policy.className = "pilot-notice";
+  policy.textContent =
+    "Controlled pilot · Approved synthetic PDFs only. No patient records, confidential or regulated sensitive files.";
+  labelWithIcon(
+    root.querySelector<HTMLElement>(".upload-section > a")!,
+    "Download",
+    "Download synthetic test PDF",
+  );
   add.onclick = () => {
     form.hidden = !form.hidden;
     add.setAttribute("aria-expanded", String(!form.hidden));
@@ -35,6 +57,7 @@ export function mountDocuments(
   };
   const input = form.querySelector<HTMLInputElement>("input")!;
   const submit = form.querySelector<HTMLButtonElement>("button")!;
+  labelWithIcon(submit, "Upload", "Upload PDF");
   const preview = root.querySelector<HTMLElement>("#document-preview")!;
   let retryKey = crypto.randomUUID();
   let sequence = 0;
@@ -276,6 +299,7 @@ export function mountDocuments(
           if (xhr.status >= 400)
             throw new Error(result.error || "Upload failed.");
           await refresh();
+          status.textContent = `Uploaded ${file.name}. Your document is ready.`;
           await openDocument(result.id);
           input.value = "";
           retryKey = crypto.randomUUID();

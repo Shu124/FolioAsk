@@ -1,3 +1,4 @@
+import { labelWithIcon } from "./icons";
 export function sourceDrawer(
   root: HTMLElement,
   onClose: () => void = () => {},
@@ -8,6 +9,7 @@ export function sourceDrawer(
   dialog.innerHTML =
     '<header><div><p class="eyebrow">VERIFY THE EVIDENCE</p><h2>Source document</h2></div><button type="button" autofocus>Close source</button></header><div class="drawer-body"></div>';
   const body = dialog.querySelector<HTMLElement>(".drawer-body")!;
+  labelWithIcon(dialog.querySelector("button")!, "Close", "Close source");
   root.append(dialog);
   let opener: HTMLElement | null = null;
   dialog.querySelector("button")!.onclick = () => dialog.close();

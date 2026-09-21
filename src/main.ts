@@ -1,3 +1,4 @@
+import "@fontsource-variable/inter";
 import "./style.css";
 import "./workspace.css";
 import "./landing.css";

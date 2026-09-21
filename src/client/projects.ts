@@ -2,7 +2,7 @@ import type { Workspace } from "../server/contracts";
 import { mountDocuments, type Api } from "./documents";
 import { mountTheme } from "./theme";
 import { mountSettings } from "./settings";
-import { icon } from "./icons";
+import { icon, labelWithIcon } from "./icons";
 import { mountDashboard } from "./dashboard";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
@@ -16,15 +16,14 @@ export function mountProjects(
   root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label>Current project<select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
   const addProject = root.querySelector<HTMLButtonElement>("#new-project")!;
-  addProject.textContent = "Add project";
+  labelWithIcon(addProject, "Plus", "Add project");
   const contentHeader = document.createElement("header");
-  contentHeader.className = "workspace-toolbar";
-  contentHeader.innerHTML = '<span class="eyebrow">RESEARCH WORKSPACE</span>';
+  contentHeader.className = "workspace-toolbar project-topbar";
   contentHeader.append(addProject);
   root.querySelector(".project-content")!.prepend(contentHeader);
   const menu = document.createElement("button");
   menu.className = "mobile-navigation-toggle";
-  menu.textContent = "Toggle navigation";
+  labelWithIcon(menu, "Menu", "Toggle navigation");
   menu.setAttribute("aria-expanded", "true");
   root.querySelector(".project-sidebar")!.prepend(menu);
   menu.onclick = () => {
@@ -38,11 +37,27 @@ export function mountProjects(
   const onboarding = root.querySelector<HTMLElement>("#project-onboarding")!;
   const main = root.querySelector<HTMLElement>("#project-main")!;
   const title = root.querySelector<HTMLElement>("#project-title")!;
+  const breadcrumb = document.createElement("div");
+  breadcrumb.className = "project-breadcrumb";
+  breadcrumb.innerHTML = icon("Folder");
+  breadcrumb.append(title);
+  contentHeader.prepend(breadcrumb);
+  labelWithIcon(
+    root.querySelector<HTMLElement>("#project-signout")!,
+    "Logout",
+    "Sign out",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>("#project-form button")!,
+    "Plus",
+    "Create project",
+  );
   const dashboard = root.querySelector<HTMLElement>("#project-dashboard")!;
   let dashboardView: ReturnType<typeof mountDashboard> | undefined;
   const evidence = root.querySelector<HTMLElement>("#project-evidence")!;
   const settings = root.querySelector<HTMLElement>("#project-settings")!;
-  settings.innerHTML = "<h2>Settings</h2>";
+  settings.innerHTML =
+    '<div class="page-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h2>Settings</h2><p class="page-description">Manage your account, project and workspace preferences.</p></div></div>';
   const appearance = document.createElement("section");
   settings.append(appearance);
   const shortcut = document.createElement("button");
@@ -67,6 +82,7 @@ export function mountProjects(
     return button;
   });
   function show(view: View) {
+    if (activeView !== view) window.scrollTo({ top: 0, behavior: "instant" });
     activeView = view;
     dashboard.hidden = view !== "Dashboard";
     evidence.hidden = view !== "Documents" && view !== "Chat";

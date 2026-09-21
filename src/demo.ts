@@ -1,5 +1,5 @@
 import { samples, type SampleKey } from "./samples";
-import { icon } from "./client/icons";
+import { icon, labelWithIcon } from "./client/icons";
 import { sourceDrawer } from "./client/source-drawer";
 
 export function mountDemo(root: HTMLElement) {
@@ -16,6 +16,45 @@ export function mountDemo(root: HTMLElement) {
   <section data-demo-panel="Dashboard" aria-label="Sample dashboard" hidden><h3>Dashboard</h3><p class="quiet">Simulated example activity · Not your account data</p><div class="metric-grid"><section class="metric-card"><p>Sample documents</p><strong id="demo-document-count">1</strong></section><section class="metric-card"><p>Prepared answers</p><strong>1</strong></section><section class="metric-card"><p>Conversations</p><strong>1</strong></section><section class="metric-card"><p>Active time</p><strong class="demo-untracked">Not tracked</strong></section></div><div class="activity-chart-card"><h3>Example activity</h3><p>Illustrative seven-day sequence, not real usage.</p><div class="activity-chart" role="img" aria-label="Simulated activity: one upload on day three and one prepared answer on day seven.">${[0, 0, 1, 0, 0, 0, 1].map((count, index) => `<div class="activity-column"><span>${count}</span><div class="activity-bar" style="height:${count * 70}px"></div><small>Day ${index + 1}</small></div>`).join("")}</div><details><summary>View sample chart data</summary><table aria-label="Sample activity data"><thead><tr><th>Day</th><th>Uploads</th><th>Answers</th></tr></thead><tbody>${[0, 0, 1, 0, 0, 0, 1].map((count, index) => `<tr><td>${index + 1}</td><td>${index === 2 ? count : 0}</td><td>${index === 6 ? count : 0}</td></tr>`).join("")}</tbody></table></details></div><h3>Recent activity</h3><div class="table-scroll"><table aria-label="Sample recent activity"><thead><tr><th>Activity</th><th>Example time</th><th>Open</th></tr></thead><tbody><tr><td>Sample document</td><td>Day 3 · 09:30</td><td><button data-demo-open="document">Inspect sample</button></td></tr><tr><td>Prepared conversation</td><td>Day 7 · 09:32</td><td><button data-demo-open="chat">Open sample chat</button></td></tr></tbody></table></div></section>
   <section data-demo-panel="Documents" aria-label="Sample documents" hidden><div class="workspace-toolbar"><h3>Documents</h3><a class="primary" href="/app?auth=signup">Add document · sign in</a></div><p class="quiet">Synthetic example only. Uploads are unavailable in this demo. Trash/Restore changes below are simulated and reset on reload.</p><div class="table-tools"><div class="section-tabs" aria-label="Demo document views"><button data-demo-trash-view="false" aria-pressed="true">Active</button><button data-demo-trash-view="true" aria-pressed="false">Trash</button></div><label>Search sample documents<input type="search" id="demo-search"></label></div><div class="table-scroll" tabindex="0" aria-label="Scrollable sample document table"><table aria-label="Demo documents"><thead><tr><th>Name</th><th>Example upload time</th><th>Pages</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr id="demo-document-row"><td><button data-demo-open="document" data-demo-name></button></td><td>Day 3 · 09:30</td><td>1</td><td id="demo-document-status">Ready</td><td><button id="demo-trash-action">Move sample to Trash</button></td></tr><tr id="demo-empty" hidden><td colspan="5">No sample documents in this view.</td></tr></tbody></table></div></section>
   <section data-demo-panel="Chat" class="answer-panel" aria-label="Sample conversation"><h3>Ask your document</h3><p class="quiet">Answers can be wrong. Verify each source. No professional advice.</p><p class="demo-thread-title">Conversation: <span id="demo-thread"></span></p><div class="demo-message-history"><article class="saved-answer"><h4 id="sample-question"></h4><p class="quiet">Prepared answer · No live AI</p><p id="sample-answer"></p><button id="citation" class="citation">View source · page 1</button></article></div><div class="demo-composer"><label>Selected sample<select aria-label="Selected sample" disabled><option id="demo-selected-document"></option></select></label><p>Live questions require sign-in and an operator-configured model.</p><a class="primary" href="/app?auth=signup">Start your own conversation ↗</a></div></section></div></div>`;
+  labelWithIcon(
+    root.querySelector<HTMLElement>(".demo-body header a")!,
+    "Plus",
+    "Create a project",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>('[data-demo-panel="Documents"] a')!,
+    "Upload",
+    "Add document · sign in",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>('[data-demo-trash-view="false"]')!,
+    "Documents",
+    "Active",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>('[data-demo-trash-view="true"]')!,
+    "Trash",
+    "Trash",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>('[data-demo-open="chat"]')!,
+    "Chat",
+    "Open sample chat",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>('[data-demo-open="document"]')!,
+    "Source",
+    "Inspect sample",
+  );
+  labelWithIcon(
+    root.querySelector<HTMLElement>(".demo-composer a")!,
+    "Send",
+    "Start your own conversation ↗",
+  );
+  const assistant = document.createElement("div");
+  assistant.className = "assistant-label";
+  assistant.innerHTML = `${icon("Chat")}<strong>FolioAsk</strong>`;
+  root.querySelector("#sample-question")!.after(assistant);
   const source = document.createElement("section");
   source.className = "source-panel";
   source.setAttribute("aria-label", "Source document");
@@ -47,12 +86,17 @@ export function mountDemo(root: HTMLElement) {
     find("demo-document-row").hidden = !matches;
     find("demo-empty").hidden = matches;
     find("demo-document-status").textContent = removed ? "In Trash" : "Ready";
-    find("demo-trash-action").textContent = removed
-      ? "Restore sample"
-      : "Move sample to Trash";
+    labelWithIcon(
+      find("demo-trash-action"),
+      removed ? "Restore" : "Trash",
+      removed ? "Restore sample" : "Move sample to Trash",
+    );
     find("demo-document-count").textContent = removed ? "0" : "1";
-    find("citation").textContent =
-      `View source · page 1${removed ? " · In Trash" : ""}`;
+    labelWithIcon(
+      find("citation"),
+      "Source",
+      `View source · page 1${removed ? " · In Trash" : ""}`,
+    );
     root
       .querySelectorAll<HTMLButtonElement>("[data-demo-trash-view]")
       .forEach((button) =>
@@ -77,7 +121,9 @@ export function mountDemo(root: HTMLElement) {
     }))
       find(id).textContent = text;
     root.querySelectorAll<HTMLElement>("[data-demo-name]").forEach((node) => {
-      node.textContent = sample.name;
+      if (node.tagName === "BUTTON")
+        labelWithIcon(node, "Documents", sample.name);
+      else node.textContent = sample.name;
     });
     root
       .querySelectorAll<HTMLButtonElement>("[data-sample]")
@@ -142,6 +188,7 @@ export function mountDemo(root: HTMLElement) {
   const menu = root.querySelector<HTMLButtonElement>(
     ".mobile-navigation-toggle",
   )!;
+  labelWithIcon(menu, "Menu", "Toggle demo navigation");
   menu.onclick = () => {
     const open = menu.getAttribute("aria-expanded") !== "true";
     menu.setAttribute("aria-expanded", String(open));
