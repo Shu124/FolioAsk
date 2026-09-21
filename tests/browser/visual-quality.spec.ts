@@ -1,6 +1,82 @@
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
+test("public demo and signup remain usable with enlarged text", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  expect(
+    await page.evaluate(() =>
+      [...document.fonts].some(
+        (font) =>
+          font.family.includes("Inter Variable") && font.status === "loaded",
+      ),
+    ),
+  ).toBe(true);
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((theme) => {
+      localStorage.setItem("folioask-theme", theme);
+    }, theme);
+    await page.reload();
+    await page
+      .locator(".product-hero")
+      .screenshot({ path: test.info().outputPath(`hero-${theme}.png`) });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    const navigation = page.getByRole("navigation", {
+      name: "Demo navigation",
+    });
+    for (const view of ["Dashboard", "Documents", "Chat"]) {
+      await navigation.getByRole("button", { name: view, exact: true }).click();
+      const overflow = await page.evaluate(() => ({
+        fits: document.documentElement.scrollWidth <= innerWidth,
+        nodes: [...document.querySelectorAll<HTMLElement>("body *")]
+          .filter(
+            (node) =>
+              node.getBoundingClientRect().right > innerWidth &&
+              !node.closest(".table-scroll, .activity-chart"),
+          )
+          .map((node) => node.className || node.tagName)
+          .slice(0, 15),
+      }));
+      expect(overflow.fits, `${view}: ${overflow.nodes.join(", ")}`).toBe(true);
+      await page
+        .locator(".demo-grid")
+        .screenshot({
+          path: test
+            .info()
+            .outputPath(`demo-${view.toLowerCase()}-${theme}-200.png`),
+        });
+    }
+  }
+  await page.goto("/app?auth=signup");
+  await expect(
+    page.getByRole("heading", { name: "Create your FolioAsk account" }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%";
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("signup-text-200.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Back to sign in", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("readable product UI across populated screens and themes", async ({
   page,
 }) => {
@@ -68,6 +144,30 @@ test("readable product UI across populated screens and themes", async ({
         path: test.info().outputPath(`${view.toLowerCase()}-${theme}.png`),
         fullPage: true,
       });
+      const controls = await page
+        .locator("button, input, select, textarea")
+        .evaluateAll((nodes) =>
+          nodes
+            .filter((node) => node.getBoundingClientRect().height > 0)
+            .map((node) => ({
+              label:
+                node.getAttribute("aria-label") ||
+                node.textContent?.trim().slice(0, 35) ||
+                node.tagName,
+              size: parseFloat(getComputedStyle(node).fontSize),
+              height: node.getBoundingClientRect().height,
+            })),
+        );
+      for (const control of controls) {
+        expect(
+          control.size,
+          `${view}: ${control.label} readable type`,
+        ).toBeGreaterThanOrEqual(14);
+        expect(
+          control.height,
+          `${view}: ${control.label} usable target`,
+        ).toBeGreaterThanOrEqual(44);
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

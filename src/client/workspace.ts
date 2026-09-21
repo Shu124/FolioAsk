@@ -21,14 +21,12 @@ export async function mountWorkspace(root: HTMLElement) {
     "Source",
     "Back to guided demo",
   );
-  signin
-    .querySelector("h1")!
-    .before(
-      Object.assign(document.createElement("p"), {
-        className: "auth-kicker eyebrow",
-        textContent: "WELCOME TO FOLIOASK",
-      }),
-    );
+  signin.querySelector("h1")!.before(
+    Object.assign(document.createElement("p"), {
+      className: "auth-kicker eyebrow",
+      textContent: "WELCOME TO FOLIOASK",
+    }),
+  );
   signin.querySelector("h1")!.nextElementSibling!.textContent =
     "One workspace for your documents, conversations and the evidence behind every answer.";
   signin.append(
@@ -66,7 +64,7 @@ export async function mountWorkspace(root: HTMLElement) {
   google.type = "button";
   google.className = "google-signin";
   google.innerHTML =
-    '<span class="google-mark" aria-hidden="true">G</span><span>Continue with Google</span>';
+    '<img class="google-mark" src="/google-signin.svg" alt="" width="20" height="20"><span>Continue with Google</span>';
   loginForm.before(google);
   const divider = document.createElement("p");
   divider.className = "auth-divider quiet";

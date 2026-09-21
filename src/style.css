@@ -167,6 +167,7 @@ h1,
 h2,
 h3,
 h4 {
+  overflow-wrap: anywhere;
   color: var(--text);
 }
 h1,
@@ -357,9 +358,11 @@ nav {
   margin-top: 0.75rem;
 }
 .google-mark {
-  font-size: 1.25rem;
-  font-weight: 700;
-  font-family: Arial, sans-serif;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 50%;
 }
 .auth-divider {
   display: flex;
