@@ -447,10 +447,6 @@ nav {
   gap: 30px;
   font-size: 13px;
 }
-.hero {
-  padding: 84px 0 74px;
-  max-width: 850px;
-}
 .eyebrow {
   font-size: 10px;
   font-weight: 700;
@@ -818,9 +814,6 @@ mark {
   nav {
     gap: 16px;
     font-size: 11px;
-  }
-  .hero {
-    padding: 56px 0;
   }
   .eyebrow {
     font-size: 9px;
