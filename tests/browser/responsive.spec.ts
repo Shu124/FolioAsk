@@ -4,6 +4,7 @@ import { samplePdf } from "../fixtures/pdf";
 const screens = [
   { name: "narrow-phone", width: 320, height: 568 },
   { name: "phone", width: 390, height: 844 },
+  { name: "wide-phone", width: 500, height: 900 },
   { name: "small-tablet", width: 600, height: 960 },
   { name: "portrait-tablet", width: 768, height: 1024 },
   { name: "large-tablet", width: 820, height: 1180 },
@@ -36,11 +37,29 @@ for (const screen of screens) {
       for (const view of ["Dashboard", "Documents", "Chat"]) {
         await demoNav.getByRole("button", { name: view, exact: true }).click();
         await fits();
-        await page
-          .locator(".demo-grid")
-          .screenshot({
-            path: test.info().outputPath(`demo-${view.toLowerCase()}.png`),
-          });
+        await page.locator(".demo-grid").screenshot({
+          path: test.info().outputPath(`demo-${view.toLowerCase()}.png`),
+        });
+      }
+      if (screen.name === "short-laptop") {
+        await page.evaluate(() => {
+          document.documentElement.style.fontSize = "200%";
+        });
+        await fits();
+        expect(
+          await page
+            .locator(".demo-sidebar")
+            .evaluate(
+              (sidebar) => sidebar.scrollWidth <= sidebar.clientWidth + 1,
+            ),
+          "enlarged demo navigation should not need horizontal scrolling",
+        ).toBe(true);
+        await page.locator(".demo-grid").screenshot({
+          path: test.info().outputPath("demo-text-200.png"),
+        });
+        await page.evaluate(() => {
+          document.documentElement.style.fontSize = "";
+        });
       }
       await page.goto("/app?auth=signup");
       await expect(
@@ -68,6 +87,22 @@ for (const screen of screens) {
         .getByRole("button", { name: "Create project", exact: true })
         .click();
       const nav = page.getByRole("navigation", { name: "Project navigation" });
+      await expect(nav.getByRole("button")).toHaveCount(4);
+      if (screen.width <= 960) {
+        const rowCounts = await nav
+          .getByRole("button")
+          .evaluateAll((buttons) => {
+            const rows = new Map<number, number>();
+            for (const button of buttons) {
+              const row = Math.round(button.getBoundingClientRect().top);
+              rows.set(row, (rows.get(row) ?? 0) + 1);
+            }
+            return [...rows.values()];
+          });
+        expect(new Set(rowCounts).size, "navigation rows stay balanced").toBe(
+          1,
+        );
+      }
       await nav.getByRole("button", { name: "Documents", exact: true }).click();
       await page
         .getByRole("button", { name: "Add document", exact: true })
@@ -155,6 +190,9 @@ for (const screen of screens) {
           }
         }
       }
+      await nav.getByRole("button", { name: "Chat", exact: true }).click();
+      const question = page.getByLabel("Your question");
+      await question.fill("A follow-up draft to keep while resizing");
       if (screen.width <= 960) {
         const toggle = page.getByRole("button", {
           name: "Toggle navigation",
@@ -176,14 +214,33 @@ for (const screen of screens) {
         await page.keyboard.press("Enter");
         await expect(nav).toBeVisible();
       }
-      await nav.getByRole("button", { name: "Chat", exact: true }).click();
-      await page.getByLabel("Your question").focus();
-      await expect(page.getByLabel("Your question")).toBeInViewport();
-      await page.keyboard.type("A follow-up draft after resizing");
-      await expect(page.getByLabel("Your question")).toHaveValue(
-        "A follow-up draft after resizing",
+      await question.focus();
+      await expect(question).toBeInViewport();
+      await expect(question).toHaveValue(
+        "A follow-up draft to keep while resizing",
       );
       await fits();
+      if (screen.name === "short-laptop") {
+        await page.evaluate(() => {
+          document.documentElement.style.fontSize = "200%";
+        });
+        for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
+          await nav.getByRole("button", { name: view, exact: true }).click();
+          await fits();
+          expect(
+            await page
+              .locator(".project-sidebar")
+              .evaluate(
+                (sidebar) => sidebar.scrollWidth <= sidebar.clientWidth + 1,
+              ),
+            "enlarged navigation should not need horizontal scrolling",
+          ).toBe(true);
+        }
+        await page.screenshot({
+          path: test.info().outputPath("short-laptop-text-200.png"),
+          fullPage: true,
+        });
+      }
     });
   });
 }

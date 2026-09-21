@@ -12,6 +12,7 @@
   gap: 2rem;
 }
 .project-sidebar {
+  container: sidebar / inline-size;
   align-self: start;
   position: sticky;
   top: 1.5rem;
@@ -674,7 +675,7 @@
 @media (max-width: 1100px) {
   .project-shell {
     gap: 1.5rem;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: minmax(220px, 14rem) minmax(0, 1fr);
   }
   .account-page:has(.project-shell) {
     padding: 0 1.5rem;
@@ -717,7 +718,7 @@
   }
   .project-sidebar nav {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0.25rem 0 0;
     padding: 0;
     border: 0;
@@ -816,6 +817,16 @@
   }
   .drawer-body {
     padding: 1rem;
+  }
+}
+@container sidebar (min-width: 34rem) {
+  #project-navigation {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@container sidebar (max-width: 14rem) {
+  #project-navigation {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 .mobile-cell-label {

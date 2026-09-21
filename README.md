@@ -99,7 +99,8 @@ matrix: 320–1366px wide phones, portrait/landscape tablets, short laptops and
 landscape phones. Screenshots are written under ignored `test-results/`.
 The checks cover the landing/demo/auth pages, populated workspace tabs, both
 themes, compact navigation, table actions, and resizing with a chat draft.
-The regular desktop/mobile suite also checks 200% text sizing.
+The short-laptop check covers 200% text sizing, including internal navigation
+overflow; the regular desktop/mobile suite also checks enlarged text.
 
 Navigation becomes a compact top panel through 960px. Below 640px of available
 content width, document and recent-activity tables become labelled rows with
