@@ -29,9 +29,14 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
     page.getByText("No activity yet. Add an approved document to get started."),
   ).toBeVisible();
   let sent = 0;
+  const recorded = new Map<number, number>();
+  const activitySnapshot = () => [...recorded].sort(([a], [b]) => a - b);
   page.on("request", (request) => {
-    if (request.method() === "POST" && request.url().endsWith("/activity"))
+    if (request.method() === "POST" && request.url().endsWith("/activity")) {
       sent++;
+      const { bucket, milliseconds } = request.postDataJSON();
+      recorded.set(bucket, Math.max(recorded.get(bucket) ?? 0, milliseconds));
+    }
   });
   await page.clock.runFor(31000);
   await expect.poll(() => sent).toBeGreaterThan(0);
@@ -39,6 +44,12 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
   await expect(
     page.getByLabel("Approximate active time", { exact: true }),
   ).not.toHaveText("0s");
+  // A rejected interval may be retried even when the tab is hidden.
+  await page.route("**/workspaces/*/activity", (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({ status: 400, json: { error: "Invalid interval" } })
+      : route.continue(),
+  );
   await page.evaluate(() => {
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -47,9 +58,12 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await page.clock.runFor(20000);
-  const afterFlush = sent;
+  const afterFlush = activitySnapshot();
+  const requestsAfterFlush = sent;
   await page.clock.runFor(20000);
-  expect(sent).toBe(afterFlush);
+  // Retries must not introduce a new bucket or increase recorded active time.
+  expect(sent).toBeGreaterThan(requestsAfterFlush);
+  expect(activitySnapshot()).toEqual(afterFlush);
   await page.evaluate(() => {
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -58,9 +72,9 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await page.clock.runFor(125000);
-  const afterIdle = sent;
+  const afterIdle = activitySnapshot();
   await page.clock.runFor(30000);
-  expect(sent).toBe(afterIdle);
+  expect(activitySnapshot()).toEqual(afterIdle);
   await page.screenshot({
     path: test.info().outputPath("dashboard.png"),
     fullPage: true,
