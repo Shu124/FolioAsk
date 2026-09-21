@@ -1,6 +1,7 @@
 import { samples, type SampleKey } from "./samples";
 import { icon, labelWithIcon } from "./client/icons";
 import { sourceDrawer } from "./client/source-drawer";
+import { responsiveTable } from "./client/responsive-table";
 
 export function mountDemo(root: HTMLElement) {
   root.innerHTML = `<div class="section-top"><div><p class="eyebrow">EXPLORE THE WORKSPACE</p><h2>Bring a question. Leave with context.</h2></div><span class="badge">Guided demo · Synthetic documents</span></div><p class="quiet">Everything below is simulated: example activity, document metadata and prepared answers. No uploads, live AI calls or account data.</p><div class="sector-tabs" aria-label="Choose a sample">${Object.entries(
@@ -92,6 +93,9 @@ export function mountDemo(root: HTMLElement) {
       removed ? "Restore sample" : "Move sample to Trash",
     );
     find("demo-document-count").textContent = removed ? "0" : "1";
+    root
+      .querySelectorAll<HTMLTableElement>(".table-scroll table")
+      .forEach(responsiveTable);
     labelWithIcon(
       find("citation"),
       "Source",
@@ -189,6 +193,9 @@ export function mountDemo(root: HTMLElement) {
     ".mobile-navigation-toggle",
   )!;
   labelWithIcon(menu, "Menu", "Toggle demo navigation");
+  menu.title = "Toggle demo navigation";
+  menu.setAttribute("aria-controls", "demo-navigation");
+  root.querySelector("nav")!.id = "demo-navigation";
   menu.onclick = () => {
     const open = menu.getAttribute("aria-expanded") !== "true";
     menu.setAttribute("aria-expanded", String(open));

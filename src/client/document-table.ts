@@ -1,5 +1,6 @@
 import type { DocumentRecord } from "../server/documents";
 import { labelWithIcon } from "./icons";
+import { responsiveTable } from "./responsive-table";
 
 export function mountDocumentTable(
   root: HTMLElement,
@@ -102,6 +103,7 @@ export function mountDocumentTable(
         ? "No matching documents."
         : "No documents here yet.";
     }
+    responsiveTable(root.querySelector("table")!);
     tabs.forEach((tab, index) => {
       tab.setAttribute("aria-pressed", String(trash === (index === 1)));
       tab.disabled = busy;

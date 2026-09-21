@@ -16,11 +16,11 @@ export async function mountWorkspace(root: HTMLElement) {
   const brand = root.querySelector<HTMLElement>(".brand")!;
   brand.innerHTML =
     '<span class="brand-icon" aria-hidden="true">F</span><span>FolioAsk</span>';
-  labelWithIcon(
-    root.querySelector<HTMLElement>(".site-header > a:last-child")!,
-    "Source",
-    "Back to guided demo",
-  );
+  const demoLink = root.querySelector<HTMLElement>(
+    ".site-header > a:last-child",
+  )!;
+  labelWithIcon(demoLink, "Source", "Guided demo");
+  demoLink.setAttribute("aria-label", "Back to guided demo");
   signin.querySelector("h1")!.before(
     Object.assign(document.createElement("p"), {
       className: "auth-kicker eyebrow",

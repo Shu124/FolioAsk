@@ -13,6 +13,7 @@
   border-radius: 0;
   border-right: 1px solid var(--border);
   align-self: stretch;
+  max-height: none;
 }
 .demo-project-name {
   font-size: 0.875rem;
@@ -20,6 +21,7 @@
   overflow-wrap: anywhere;
 }
 .demo-body {
+  container-type: inline-size;
   padding: 28px;
   min-width: 0;
   background: var(--surface);
@@ -108,7 +110,7 @@
     padding: 20px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 960px) {
   .demo-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -118,7 +120,13 @@
     min-height: auto;
   }
   .demo-sidebar nav {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  }
+  .demo-project-name {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    align-self: center;
   }
   .demo-sidebar nav button {
     padding: 10px 6px;

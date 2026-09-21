@@ -92,6 +92,20 @@ Browser tests use installed Google Chrome by default. Alternatively run
 `npx playwright install chromium` and set `PLAYWRIGHT_CHANNEL=chromium` in your
 shell before testing. The build output is `dist/`.
 
+### Responsive layout checks
+
+Run `npm run test:browser -- --project=responsive` for the dedicated viewport
+matrix: 320–1366px wide phones, portrait/landscape tablets, short laptops and
+landscape phones. Screenshots are written under ignored `test-results/`.
+The checks cover the landing/demo/auth pages, populated workspace tabs, both
+themes, compact navigation, table actions, and resizing with a chat draft.
+The regular desktop/mobile suite also checks 200% text sizing.
+
+Navigation becomes a compact top panel through 960px. Below 640px of available
+content width, document and recent-activity tables become labelled rows with
+visible actions. These are browser viewport checks, not physical iOS/Android
+device or mobile-keyboard certification; include those in deployment QA.
+
 ## Deploy the current demo to Cloudflare Pages
 
 1. Create a Cloudflare account and connect your GitHub account to Pages.

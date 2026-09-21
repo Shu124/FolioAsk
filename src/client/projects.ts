@@ -13,7 +13,7 @@ export function mountProjects(
   api: Api,
   signedOut: (message?: string) => void,
 ) {
-  root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label>Current project<select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
+  root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label><span class="project-selector-label">Current project</span><select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
   const addProject = root.querySelector<HTMLButtonElement>("#new-project")!;
   labelWithIcon(addProject, "Plus", "Add project");
@@ -25,6 +25,8 @@ export function mountProjects(
   menu.className = "mobile-navigation-toggle";
   labelWithIcon(menu, "Menu", "Toggle navigation");
   menu.setAttribute("aria-expanded", "true");
+  menu.setAttribute("aria-controls", "project-navigation");
+  menu.title = "Toggle navigation";
   root.querySelector(".project-sidebar")!.prepend(menu);
   menu.onclick = () => {
     const open = menu.getAttribute("aria-expanded") !== "true";
@@ -61,12 +63,16 @@ export function mountProjects(
   const appearance = document.createElement("section");
   settings.append(appearance);
   const shortcut = document.createElement("button");
-  root.querySelector(".project-sidebar")!.append(shortcut);
+  const utilities = document.createElement("div");
+  utilities.className = "sidebar-utilities";
+  utilities.append(root.querySelector("#project-signout")!, shortcut);
+  root.querySelector(".project-sidebar")!.append(utilities);
   const disposeTheme = mountTheme(appearance, shortcut);
   const accountSettings = document.createElement("div");
   settings.append(accountSettings);
   let settingsView: ReturnType<typeof mountSettings> | undefined;
   const nav = root.querySelector<HTMLElement>("nav")!;
+  nav.id = "project-navigation";
   const form = root.querySelector<HTMLFormElement>("#project-form")!;
   let projects: Workspace[] = [];
   let current: Workspace | undefined;

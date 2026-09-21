@@ -2,6 +2,7 @@ import type { ProjectActivity } from "../server/activity";
 import type { Api } from "./documents";
 import { trackActiveTime } from "./active-time";
 import { icon, labelWithIcon } from "./icons";
+import { responsiveTable } from "./responsive-table";
 
 export function mountDashboard(
   root: HTMLElement,
@@ -138,6 +139,7 @@ export function mountDashboard(
     const scroll = element("div");
     scroll.className = "table-scroll";
     const activity = element("table");
+    activity.className = "activity-table";
     activity.setAttribute("aria-label", "Recent activity");
     activity.innerHTML =
       "<thead><tr><th>Activity</th><th>Time</th><th>Open</th></tr></thead>";
@@ -161,6 +163,7 @@ export function mountDashboard(
       cell.textContent =
         "No activity yet. Add an approved document to get started.";
     }
+    responsiveTable(activity);
     scroll.append(activity);
     data.append(scroll);
   }

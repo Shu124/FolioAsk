@@ -10,11 +10,20 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { viewport: { width: 390, height: 844 } } },
+    {
+      name: "desktop",
+      testIgnore: "**/responsive.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile",
+      testIgnore: "**/responsive.spec.ts",
+      use: { viewport: { width: 390, height: 844 } },
+    },
+    { name: "responsive", testMatch: "**/responsive.spec.ts" },
   ],
   webServer: {
-    env: { FOLIO_TEST_MODE: "1",FOLIO_LIVE_SMOKE:'0' },
+    env: { FOLIO_TEST_MODE: "1", FOLIO_LIVE_SMOKE: "0" },
     command: "npm run dev -- --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
