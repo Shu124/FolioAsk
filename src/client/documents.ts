@@ -293,6 +293,7 @@ export function mountDocuments(
     xhr.send(file);
   };
   return {
+    openDocument,
     openConversation: answers.openConversation,
     show(view: "documents" | "chat") {
       answerRoot.hidden = view === "documents";

@@ -2,6 +2,16 @@
 
 ## Document Trash migration
 
+Dashboard active-time tracking also requires `supabase/migrations/005_active_time.sql`
+after migration 004. It creates private, service-role-only interval records. Counts
+and charts use real saved project data; historical time is not estimated. Active time
+is approximate, pauses while hidden/unfocused or after 60 seconds without interaction,
+and is not used for billing. Each completed 15-second interval counts at most once
+per account, including across tabs; its first reporting project receives the interval.
+Retries retain the maximum duration, not the sum. Partial final intervals can be lost
+when leaving a project. Verify deployed time recording after applying this SQL;
+local tests do not certify production migration execution.
+
 Before deploying document management (#29), open your Supabase project → SQL Editor
 and run `supabase/migrations/004_document_trash.sql`, after migrations 001–003.
 This adds the owner-scoped Trash/Restore RPC and updates answer commits to reject

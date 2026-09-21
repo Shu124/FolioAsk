@@ -26,6 +26,7 @@ async function setup(
     },
     documents: { store, blobs: store, approvedHashes },
     answers: { store, provider },
+    activity: { store },
   });
   const request = (path: string, method = "GET", body?: unknown, cookie = "") =>
     api(
@@ -92,6 +93,23 @@ test("Trash is reversible, owner scoped and never resets lifetime allowances", a
         alice,
       );
     assert.equal((await ask()).status, 201);
+    const metrics = await (
+      await request(
+        `/workspaces/${workspace.id}/activity`,
+        "GET",
+        undefined,
+        alice,
+      )
+    ).json();
+    assert.deepEqual(metrics.counts, {
+      documents: 1,
+      trashed: 0,
+      answers: 1,
+      conversations: 1,
+    });
+    assert.equal(metrics.recent.length, 2);
+    assert.equal(metrics.days.at(-1).uploads, 1);
+    assert.equal(metrics.days.at(-1).answers, 1);
     const before = await (
       await request("/usage", "GET", undefined, alice)
     ).json();

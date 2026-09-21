@@ -8,15 +8,17 @@ import type {
 } from "./documents.ts";
 import { HttpError } from "./http.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
+import type { ActivityStore, ActiveTime } from "./activity.ts";
 
 /** Local development/test persistence only; not imported by the Cloudflare entry. */
 export class SqliteStore
-  implements Store, DocumentStore, BlobStore, AnswerStore
+  implements Store, DocumentStore, BlobStore, AnswerStore, ActivityStore
 {
   private db: DatabaseSync;
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
     this.db.exec(`PRAGMA journal_mode=WAL;
+      CREATE TABLE IF NOT EXISTS active_time (owner_id TEXT NOT NULL,workspace_id TEXT NOT NULL,bucket INTEGER NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(owner_id,bucket));
       CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, workspace_id TEXT NOT NULL, request_key TEXT NOT NULL, data TEXT NOT NULL, UNIQUE(owner_id,request_key));
@@ -36,6 +38,29 @@ export class SqliteStore
   }
   close() {
     this.db.close();
+  }
+  async recordActiveTime(
+    ownerId: string,
+    workspaceId: string,
+    bucket: number,
+    milliseconds: number,
+  ) {
+    this.db
+      .prepare(
+        "INSERT INTO active_time VALUES (?,?,?,?) ON CONFLICT(owner_id,bucket) DO UPDATE SET milliseconds=max(active_time.milliseconds,excluded.milliseconds) WHERE active_time.workspace_id=excluded.workspace_id",
+      )
+      .run(ownerId, workspaceId, bucket, milliseconds);
+  }
+  async activeTime(ownerId: string, workspaceId: string): Promise<ActiveTime> {
+    const row = this.db
+      .prepare(
+        "SELECT coalesce(sum(milliseconds),0) AS milliseconds,min(bucket) AS startedAt FROM active_time WHERE owner_id=? AND workspace_id=?",
+      )
+      .get(ownerId, workspaceId)!;
+    return {
+      milliseconds: Number(row.milliseconds),
+      ...(row.startedAt === null ? {} : { startedAt: Number(row.startedAt) }),
+    };
   }
   async putSession(session: Session) {
     this.db

@@ -30,6 +30,7 @@ export async function onRequest(context: {
   });
   return createApi({
     ...adapters,
+    activity: { store: adapters.store },
     answers: {
       store: adapters.store,
       provider:

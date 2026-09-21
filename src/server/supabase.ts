@@ -8,13 +8,14 @@ import type {
 import type { DocumentStore, DocumentRecord } from "./documents.ts";
 import { HttpError } from "./http.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
+import type { ActivityStore, ActiveTime } from "./activity.ts";
 
 export interface SupabaseConfig {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
 }
 export function supabaseAdapters(config: SupabaseConfig): {
-  store: Store & DocumentStore & AnswerStore;
+  store: Store & DocumentStore & AnswerStore & ActivityStore;
   auth: IdentityProvider;
 } {
   async function call(
@@ -121,6 +122,25 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async recordActiveTime(ownerId, workspaceId, bucket, milliseconds) {
+        const result = await call(
+          "/rest/v1/rpc/folio_record_active_time",
+          "POST",
+          {
+            p_owner: ownerId,
+            p_workspace: workspaceId,
+            p_bucket: bucket,
+            p_milliseconds: milliseconds,
+          },
+        );
+        if (result.error) throw new HttpError(result.status, result.error);
+      },
+      async activeTime(ownerId, workspaceId) {
+        return (await call("/rest/v1/rpc/folio_active_time", "POST", {
+          p_owner: ownerId,
+          p_workspace: workspaceId,
+        })) as ActiveTime;
+      },
       async setDocumentTrashed(id, ownerId, trashed, now) {
         const result = await call(
           "/rest/v1/rpc/folio_set_document_trashed",

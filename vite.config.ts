@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
             store = new SqliteStore(".local/pilot.sqlite");
             api = createApi({
               store,
+              activity: { store },
               answers: {
                 store,
                 provider:
@@ -45,13 +46,16 @@ export default defineConfig(({ mode }) => {
               },
               auth: controlledIdentity(),
             });
-          } else if (configured)
-            api = createApi(
-              supabaseAdapters({
-                SUPABASE_URL: env.SUPABASE_URL!,
-                SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY!,
-              }),
-            );
+          } else if (configured) {
+            const adapters = supabaseAdapters({
+              SUPABASE_URL: env.SUPABASE_URL!,
+              SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY!,
+            });
+            api = createApi({
+              ...adapters,
+              activity: { store: adapters.store },
+            });
+          }
           server.httpServer?.once("close", () => store?.close());
           server.middlewares.use("/api", async (req, res) => {
             // The fixture identity adapter is only accessible on a loopback dev server.

@@ -3,6 +3,7 @@ import { mountDocuments, type Api } from "./documents";
 import { mountTheme } from "./theme";
 import { mountSettings } from "./settings";
 import { icon } from "./icons";
+import { mountDashboard } from "./dashboard";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
 const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
@@ -38,9 +39,7 @@ export function mountProjects(
   const main = root.querySelector<HTMLElement>("#project-main")!;
   const title = root.querySelector<HTMLElement>("#project-title")!;
   const dashboard = root.querySelector<HTMLElement>("#project-dashboard")!;
-  const recent = document.createElement("div");
-  recent.className = "recent-conversations";
-  dashboard.append(recent);
+  let dashboardView: ReturnType<typeof mountDashboard> | undefined;
   const evidence = root.querySelector<HTMLElement>("#project-evidence")!;
   const settings = root.querySelector<HTMLElement>("#project-settings")!;
   settings.innerHTML = "<h2>Settings</h2>";
@@ -72,6 +71,7 @@ export function mountProjects(
     dashboard.hidden = view !== "Dashboard";
     evidence.hidden = view !== "Documents" && view !== "Chat";
     settings.hidden = view !== "Settings";
+    if (view === "Dashboard") void dashboardView?.refresh();
     if (view === "Settings") void settingsView?.refreshUsage();
     // Uploads and chat share project state, but render in separate sections.
     documentView?.show(view === "Documents" ? "documents" : "chat");
@@ -104,11 +104,11 @@ export function mountProjects(
   async function open(id: string) {
     const revision = ++sequence;
     documentView?.dispose();
+    dashboardView?.dispose();
     settingsView?.dispose();
     settingsView = undefined;
     documentView = undefined;
     evidence.replaceChildren();
-    recent.replaceChildren();
     current = undefined;
     main.hidden = true;
     let project: Workspace;
@@ -124,6 +124,15 @@ export function mountProjects(
     selector.value = project.id;
     onboarding.hidden = true;
     main.hidden = false;
+    dashboardView = mountDashboard(dashboard, project.id, api, (target) => {
+      if (target.threadId) {
+        documentView?.openConversation(target.threadId);
+        show("Chat");
+      } else if (target.documentId) {
+        show("Documents");
+        void documentView?.openDocument(target.documentId);
+      }
+    });
     settingsView = mountSettings(
       accountSettings,
       project,
@@ -144,29 +153,10 @@ export function mountProjects(
     );
     // Commit the project URL before the chat reads its conversation selection.
     show(activeView);
-    documentView = mountDocuments(
-      evidence,
-      project.id,
-      api,
-      signedOut,
-      (history) => {
-        if (disposed || revision !== sequence) return;
-        recent.replaceChildren();
-        if (!history.length)
-          recent.textContent =
-            "No conversations yet. Ask your first question in Chat.";
-        for (const thread of history) {
-          const button = document.createElement("button");
-          button.textContent = thread.title;
-          button.title = `Updated ${new Date(thread.updatedAt).toLocaleString()}`;
-          button.onclick = () => {
-            documentView?.openConversation(thread.id);
-            show("Chat");
-          };
-          recent.append(button);
-        }
-      },
-    );
+    documentView = mountDocuments(evidence, project.id, api, signedOut, () => {
+      if (disposed || revision !== sequence) return;
+      if (activeView === "Dashboard") void dashboardView?.refresh();
+    });
     show(activeView);
     try {
       await documentView.ready;
@@ -240,6 +230,7 @@ export function mountProjects(
     dispose() {
       disposed = true;
       disposeTheme();
+      dashboardView?.dispose();
       settingsView?.dispose();
       sequence++;
       documentView?.dispose();

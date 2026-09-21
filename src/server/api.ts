@@ -4,6 +4,7 @@ import { accountRoute } from "./account.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { documentRoute, type DocumentServices } from "./documents.ts";
 import { answerRoute, type AnswerServices } from "./answers.ts";
+import { activityRoute, type ActivityServices } from "./activity.ts";
 
 const SESSION_SECONDS = 24 * 60 * 60;
 export function createApi(deps: {
@@ -12,6 +13,7 @@ export function createApi(deps: {
   now?: () => number;
   documents?: DocumentServices;
   answers?: AnswerServices;
+  activity?: ActivityServices;
 }) {
   const { store, auth } = deps;
   const now = deps.now ?? Date.now;
@@ -146,8 +148,18 @@ export function createApi(deps: {
           }
           response = json(workspace);
         } else {
+          const activityResponse = deps.activity
+            ? await activityRoute(
+                request,
+                ownerId,
+                deps.activity,
+                async (id) => Boolean(await store.getWorkspace(id, ownerId)),
+                now(),
+              )
+            : undefined;
           const answerResponse =
-            deps.answers && deps.documents
+            activityResponse ??
+            (deps.answers && deps.documents
               ? await answerRoute(
                   request,
                   ownerId,
@@ -156,7 +168,7 @@ export function createApi(deps: {
                   async (id) => Boolean(await store.getWorkspace(id, ownerId)),
                   now(),
                 )
-              : undefined;
+              : undefined);
           const documentResponse =
             answerResponse ??
             (deps.documents
