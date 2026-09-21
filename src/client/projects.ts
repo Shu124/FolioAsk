@@ -2,6 +2,7 @@ import type { Workspace } from "../server/contracts";
 import { mountDocuments, type Api } from "./documents";
 import { mountTheme } from "./theme";
 import { mountSettings } from "./settings";
+import { icon } from "./icons";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
 const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
@@ -13,6 +14,24 @@ export function mountProjects(
 ) {
   root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label>Current project<select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
+  const addProject = root.querySelector<HTMLButtonElement>("#new-project")!;
+  addProject.textContent = "Add project";
+  const contentHeader = document.createElement("header");
+  contentHeader.className = "workspace-toolbar";
+  contentHeader.innerHTML = '<span class="eyebrow">RESEARCH WORKSPACE</span>';
+  contentHeader.append(addProject);
+  root.querySelector(".project-content")!.prepend(contentHeader);
+  const menu = document.createElement("button");
+  menu.className = "mobile-navigation-toggle";
+  menu.textContent = "Toggle navigation";
+  menu.setAttribute("aria-expanded", "true");
+  root.querySelector(".project-sidebar")!.prepend(menu);
+  menu.onclick = () => {
+    const open = menu.getAttribute("aria-expanded") !== "true";
+    menu.setAttribute("aria-expanded", String(open));
+    root.querySelector<HTMLElement>(".project-sidebar")!.dataset.collapsed =
+      String(!open);
+  };
   status.setAttribute("aria-label", "Project status");
   const selector = root.querySelector<HTMLSelectElement>("#project-selector")!;
   const onboarding = root.querySelector<HTMLElement>("#project-onboarding")!;
@@ -43,7 +62,7 @@ export function mountProjects(
   let activeView: View = "Dashboard";
   const controls = views.map((view) => {
     const button = document.createElement("button");
-    button.textContent = view;
+    button.innerHTML = `${icon(view)}<span>${view}</span>`;
     button.onclick = () => show(view);
     nav.append(button);
     return button;
@@ -54,7 +73,7 @@ export function mountProjects(
     evidence.hidden = view !== "Documents" && view !== "Chat";
     settings.hidden = view !== "Settings";
     if (view === "Settings") void settingsView?.refreshUsage();
-    // Chat retains the source beside it for citation inspection and ongoing uploads.
+    // Uploads and chat share project state, but render in separate sections.
     documentView?.show(view === "Documents" ? "documents" : "chat");
     for (const button of controls) {
       if (button.textContent === view)

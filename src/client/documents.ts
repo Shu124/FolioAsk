@@ -2,6 +2,7 @@ import type { DocumentRecord } from "../server/documents";
 import type { Citation } from "../server/answers";
 import { mountAnswers } from "./answers";
 import type { ConversationSummary } from "./conversations";
+import { sourceDrawer } from "./source-drawer";
 
 export type Api = <T>(
   path: string,
@@ -28,6 +29,17 @@ export function mountDocuments(
   let activeUpload: XMLHttpRequest | undefined;
   let activeDownload: AbortController | undefined;
   let releasePdf = () => {};
+  const uploadSection = root.querySelector<HTMLElement>(".upload-section")!;
+  const drawer = sourceDrawer(root, () => {
+    sequence++;
+    activeDownload?.abort();
+    releasePdf();
+    releasePdf = () => {};
+  });
+  const previewStatus = document.createElement("p");
+  previewStatus.setAttribute("role", "status");
+  previewStatus.setAttribute("aria-label", "Source status");
+  drawer.body.append(previewStatus, preview);
   const answerRoot = document.createElement("div");
   root.append(answerRoot);
   const answers = mountAnswers(
@@ -44,6 +56,9 @@ export function mountDocuments(
   };
   async function openDocument(id: string, citation?: Citation) {
     if (disposed) return;
+    const status = previewStatus;
+    preview.replaceChildren();
+    drawer.show();
     const current = ++sequence;
     activeDownload?.abort();
     releasePdf();
@@ -256,11 +271,13 @@ export function mountDocuments(
     openConversation: answers.openConversation,
     show(view: "documents" | "chat") {
       answerRoot.hidden = view === "documents";
+      uploadSection.hidden = view === "chat";
       root.dataset.view = view;
     },
     ready: Promise.all([refresh(), answers.refresh()]).then(() => {}),
     dispose() {
       disposed = true;
+      drawer.dispose();
       answers.dispose();
       sequence++;
       activeUpload?.abort();

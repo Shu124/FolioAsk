@@ -26,6 +26,7 @@ export function mountAnswers(
   const pickerLabel = document.createElement("label");
   pickerLabel.textContent = "Conversation";
   const picker = document.createElement("select");
+  picker.setAttribute("aria-label", "Conversation");
   pickerLabel.append(picker);
   const newChat = document.createElement("button");
   newChat.type = "button";
@@ -86,6 +87,13 @@ export function mountAnswers(
       picker.append(new Option(thread.title, thread.id));
     picker.value = threadId ?? "";
     history.replaceChildren();
+    if (!threadId) {
+      const empty = document.createElement("div");
+      empty.className = "chat-empty";
+      empty.innerHTML =
+        '<span class="chat-monogram">F</span><h2>What would you like to find?</h2><p>Select an uploaded document below, then ask a question. Add documents from the Documents section.</p>';
+      history.append(empty);
+    }
     for (const answer of answers.filter(
       (answer) => (answer.threadId ?? answer.id) === threadId,
     )) {

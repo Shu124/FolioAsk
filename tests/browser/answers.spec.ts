@@ -16,7 +16,7 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
   await page.getByRole("button", { name: "Create project" }).click();
   await page
     .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Chat", exact: true })
+    .getByRole("button", { name: "Documents", exact: true })
     .click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
@@ -27,6 +27,11 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
   });
+  await page.getByRole("button", { name: "Close source", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Project navigation" })
+    .getByRole("button", { name: "Chat", exact: true })
+    .click();
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator("#answer-history")).toContainText(
@@ -40,13 +45,13 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
     "Shop drawings are due within 14 calendar days.",
   );
   await expect(page.getByLabel("Highlighted source passage")).toBeVisible();
-  if (page.viewportSize()!.width >= 1100) {
-    const source = await page
-      .getByRole("region", { name: "Document preview" })
-      .boundingBox();
-    const chat = await page.locator(".answer-panel").boundingBox();
-    expect(source!.x + source!.width).toBeLessThanOrEqual(chat!.x);
-  }
+  await expect(
+    page.getByRole("dialog", { name: "Source document" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Source · page 1" }),
+  ).toBeFocused();
   await page.reload();
   await expect(page.locator("#answer-history")).toContainText(
     "When are shop drawings due?",
@@ -71,7 +76,7 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
   await page.getByRole("button", { name: "Create project" }).click();
   await page
     .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Chat", exact: true })
+    .getByRole("button", { name: "Documents", exact: true })
     .click();
   const file = {
     name: "contract.pdf",
@@ -83,10 +88,18 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
   });
+  await page.getByRole("button", { name: "Close source", exact: true }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Project navigation",
+  });
+  await navigation.getByRole("button", { name: "Chat", exact: true }).click();
   await page
     .getByLabel("Your question")
     .fill("When are shop drawings due? [slow fixture]");
   await page.getByRole("button", { name: "Ask selected document" }).click();
+  await navigation
+    .getByRole("button", { name: "Documents", exact: true })
+    .click();
   await page
     .getByLabel("Choose PDF")
     .setInputFiles({ ...file, name: "second.pdf" });
@@ -94,6 +107,8 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
   await expect(
     page.getByText("1 of 3 lifetime uploads remaining"),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Close source", exact: true }).click();
+  await navigation.getByRole("button", { name: "Chat", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Ask selected document" }),
   ).toBeDisabled({ timeout: 250 });

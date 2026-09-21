@@ -17,7 +17,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .getByRole("button", { name: "Create project", exact: true })
     .click();
   const nav = page.getByRole("navigation", { name: "Project navigation" });
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await nav.getByRole("button", { name: "Documents", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
@@ -25,6 +25,8 @@ test("separate conversations reopen from dashboard with their own saved answers"
   });
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
+  await page.getByRole("button", { name: "Close source" }).click();
+  await nav.getByRole("button", { name: "Chat", exact: true }).click();
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(1);
@@ -48,6 +50,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .first()
     .click();
   await expect(page.getByLabel("Highlighted source passage")).toBeVisible();
+  await page.getByRole("button", { name: "Close source" }).click();
   let failRead = true;
   await page.route("**/api/workspaces/*/answers", async (route) => {
     if (route.request().method() === "GET" && failRead) {

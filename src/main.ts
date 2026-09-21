@@ -1,4 +1,5 @@
 import "./style.css";
+import "./workspace.css";
 import "./client/theme";
 import { samples, type SampleKey } from "./samples";
 

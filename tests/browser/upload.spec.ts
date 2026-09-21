@@ -16,7 +16,7 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await page.getByRole("button", { name: "Create project" }).click();
   await page
     .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Chat", exact: true })
+    .getByRole("button", { name: "Documents", exact: true })
     .click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
@@ -45,6 +45,7 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await expect(
     page.locator('canvas[aria-label="Original page 1"]'),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Close source" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(
     page.getByRole("heading", { name: "Sign in to your workspace" }),
