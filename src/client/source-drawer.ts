@@ -11,6 +11,28 @@ export function sourceDrawer(
   root.append(dialog);
   let opener: HTMLElement | null = null;
   dialog.querySelector("button")!.onclick = () => dialog.close();
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const controls = [
+      ...dialog.querySelectorAll<HTMLElement>(
+        "button, a[href], input, select, textarea, [tabindex]",
+      ),
+    ].filter(
+      (node) =>
+        node.tabIndex >= 0 &&
+        !node.matches(":disabled") &&
+        node.getClientRects().length > 0,
+    );
+    const first = controls[0],
+      last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  });
   dialog.addEventListener("close", () => {
     onClose();
     if (opener?.isConnected) opener.focus();

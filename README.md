@@ -1,6 +1,33 @@
 # FolioAsk
 
-## Document Trash migration
+## Workspace redesign setup
+
+The landing page and guided demo now match the project's Dashboard, Documents,
+Chat and Settings layout. The public demo is entirely simulated and makes no
+upload or model requests. Its example Trash changes reset when the page reloads.
+
+For a zero-cost local walkthrough with simulated identity and AI, use PowerShell:
+
+```powershell
+npm.cmd ci
+$env:FOLIO_TEST_MODE='1'
+npm.cmd run dev
+```
+
+Open the printed localhost URL, then `/app`. Sign in with a fresh `@example.test`
+email (such as `walkthrough@example.test`) and the fixture password
+`local-test-password`. Fixture sign-up is disabled; never use real credentials here.
+Create a project, open Documents → Add document, and upload the linked synthetic
+test PDF. Explore Chat, source citations, Trash/Restore, Dashboard and Settings.
+To return to real Supabase identity, stop Vite, run
+`Remove-Item Env:FOLIO_TEST_MODE`, then restart with `npm.cmd run dev`.
+Fixture mode is local-only; never enable it in a public deployment.
+
+For an existing Supabase deployment, apply the migrations below in order before
+deploying this branch. Account creation alone does not configure document storage
+or live AI; follow the Supabase, Cloudflare R2 and Gemini setup sections below.
+
+### Required migrations: 004 then 005
 
 Dashboard active-time tracking also requires `supabase/migrations/005_active_time.sql`
 after migration 004. It creates private, service-role-only interval records. Counts

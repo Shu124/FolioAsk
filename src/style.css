@@ -519,14 +519,6 @@ h1 span {
   margin: 20px 0;
   flex-wrap: wrap;
 }
-.demo-view-controls {
-  display: none;
-}
-.demo-view-controls button[aria-pressed="true"] {
-  background: #eef4ff;
-  color: var(--blue);
-  border-color: #b7ccfa;
-}
 .sector-tabs button {
   font-size: 12px;
   padding: 8px 18px;
@@ -536,20 +528,6 @@ h1 span {
   color: var(--blue);
   border-color: #b7ccfa;
   background: #eef4ff;
-}
-.demo-grid {
-  display: grid;
-  grid-template-columns: 205px minmax(0, 1.05fr) minmax(0, 1fr);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  min-height: 490px;
-  box-shadow: 0 10px 50px #202c3c08;
-}
-.document-list {
-  background: #f6f8fc;
-  padding: 18px 12px;
-  border-right: 1px solid var(--border);
 }
 .panel-label {
   font-size: 9px;
@@ -786,12 +764,6 @@ mark {
   margin: 0;
 }
 @media (max-width: 1050px) {
-  .demo-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .document-list {
-    display: none;
-  }
   .section-top {
     align-items: flex-start;
     flex-direction: column;
@@ -832,22 +804,6 @@ mark {
   .sector-tabs button {
     padding: 8px 12px;
     font-size: 11px;
-  }
-  .demo-grid {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 0;
-  }
-  .demo-view-controls {
-    display: flex;
-    gap: 8px;
-    margin: 0 0 12px;
-  }
-  .demo-view-controls button {
-    flex: 1;
-  }
-  .demo-grid[data-view="chat"] .source-panel,
-  .demo-grid[data-view="document"] .chat-panel {
-    display: none;
   }
   .chat-panel {
     border-left: 0;

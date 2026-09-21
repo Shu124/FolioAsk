@@ -1,0 +1,150 @@
+.demo-grid {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px #202c3c08;
+  min-height: 520px;
+}
+.demo-grid .demo-sidebar {
+  position: static;
+  min-height: 100%;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+  align-self: stretch;
+}
+.demo-project-name {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.demo-body {
+  padding: 28px;
+  min-width: 0;
+  background: white;
+}
+.demo-body h3 {
+  margin: 0 0 16px;
+}
+.demo-body .workspace-toolbar {
+  gap: 16px;
+}
+.demo-body .workspace-toolbar .secondary {
+  font-size: 11px;
+  padding: 10px 14px;
+}
+.demo-body .workspace-toolbar > .eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+.demo-thread-title {
+  padding: 12px;
+  background: #f2f5fa;
+  font-size: 11px;
+  border-radius: 8px;
+}
+.demo-message-history {
+  min-height: 220px;
+  margin: 16px 0;
+}
+.demo-composer {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.demo-composer label,
+.demo-composer p {
+  font-size: 11px;
+  color: var(--muted);
+}
+.demo-composer select {
+  padding: 8px;
+  font: inherit;
+  width: 100%;
+  margin-block: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.demo-composer .primary {
+  font-size: 11px;
+}
+.demo-body .table-scroll td,
+.demo-body .table-scroll th {
+  padding: 12px;
+  font-size: 11px;
+}
+.demo-body .table-scroll button {
+  font-size: 11px;
+  text-align: left;
+}
+.demo-body .metric-grid {
+  gap: 10px;
+}
+.demo-body .metric-card {
+  padding: 14px;
+}
+.demo-body .metric-card p {
+  font-size: 10px;
+}
+.demo-body .metric-card .demo-untracked {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.demo-body .activity-chart-card {
+  padding: 20px;
+}
+.demo-section > .source-drawer .source-panel {
+  background: transparent;
+}
+.demo-section > .source-drawer .paper {
+  margin: 0;
+}
+:root[data-theme="dark"] .demo-body {
+  background: #101827;
+}
+:root[data-theme="dark"] .demo-thread-title {
+  background: #243650;
+}
+@media (max-width: 900px) {
+  .demo-grid {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .demo-body {
+    padding: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .demo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .demo-grid .demo-sidebar {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    min-height: auto;
+  }
+  .demo-sidebar nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .demo-sidebar nav button {
+    padding: 10px 6px;
+    font-size: 11px;
+    gap: 6px;
+  }
+  .demo-sidebar nav .nav-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .demo-sidebar .quiet {
+    display: none;
+  }
+  .demo-body .workspace-toolbar {
+    flex-wrap: wrap;
+  }
+  .demo-body {
+    padding: 16px;
+  }
+  .demo-body .table-tools {
+    margin-bottom: 16px;
+  }
+}

@@ -95,101 +95,96 @@ test("registration validates passwords, confirms submission and recovers from fa
   ).toBeVisible();
 });
 
-test("demo source and navigation fit a narrow mobile screen", async ({
+test("demo source and navigation fit desktop, tablet and narrow mobile", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 320, height: 740 });
-  await page.goto("/#demo");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  for (const sector of ["Construction", "Finance", "Healthcare"]) {
-    await page.getByRole("button", { name: sector, exact: true }).click();
-    await page.getByRole("button", { name: "Document", exact: true }).click();
-    const source = page.getByRole("region", {
-      name: "Source document",
-      exact: true,
-    });
-    await expect(source).toBeVisible();
+  for (const width of [1280, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/#demo");
+    const nav = page.getByRole("navigation", { name: "Demo navigation" });
+    for (const view of ["Dashboard", "Documents", "Chat"]) {
+      await nav.getByRole("button", { name: view, exact: true }).click();
+      await expect(
+        nav.getByRole("button", { name: view, exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page
+      .getByRole("button", { name: "View source · page 1", exact: true })
+      .click();
+    const drawer = page.getByRole("dialog", { name: "Source document" });
+    await expect(drawer).toBeVisible();
+    await expect(page.locator("mark")).toBeInViewport();
     expect(
-      await source.evaluate(
+      await drawer.evaluate(
         (element) => element.scrollWidth <= element.clientWidth,
       ),
     ).toBe(true);
-    await page.getByRole("button", { name: "Chat", exact: true }).click();
-    await page.getByRole("button", { name: "View source · page 1" }).click();
-    await expect(page.locator("mark")).toBeInViewport();
-  }
-});
-
-test("inspect demo at desktop, tablet and mobile widths", async ({ page }) => {
-  for (const width of [1280, 768, 390]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto("/#demo");
-    const documentView = page.getByRole("button", {
-      name: "Document",
-      exact: true,
-    });
-    if (await documentView.isVisible()) await documentView.click();
-    await expect(
-      page.getByRole("region", { name: "Source document", exact: true }),
-    ).toBeVisible();
-    const chat = page.getByRole("region", { name: "Sample conversation" });
-    if (width > 650) await expect(chat).toBeVisible();
-    else await expect(chat).toBeHidden();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
-    expect(
-      await page
-        .locator(".source-panel")
-        .evaluate((element) => element.scrollWidth <= element.clientWidth),
-    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
     await page
       .locator(".demo-grid")
       .screenshot({ path: test.info().outputPath(`demo-${width}.png`) });
   }
 });
 
-test("mobile demo opens the source directly and citations select the document view", async ({
+test("demo Trash is simulated and source drawer traps keyboard focus in dark mode", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/#demo");
-  const documentButton = page.getByRole("button", {
-    name: "Document",
-    exact: true,
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("folioask-theme", "dark"));
+  await page.reload();
+  const nav = page.getByRole("navigation", { name: "Demo navigation" });
+  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await page.getByRole("button", { name: "Move sample to Trash" }).click();
+  await expect(
+    page.getByText("No sample documents in this view."),
+  ).toBeVisible();
+  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await page
+    .getByRole("button", { name: "View source · page 1 · In Trash" })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "This sample is in Trash.",
+  );
+  await page.keyboard.press("Escape");
+  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await page.getByRole("button", { name: "Trash", exact: true }).click();
+  await page.getByRole("button", { name: "Restore sample" }).click();
+  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await page
+    .getByRole("button", { name: "View source · page 1", exact: true })
+    .click();
+  const close = page.getByRole("button", { name: "Close source" });
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Tab");
+  expect(
+    await page.evaluate(() =>
+      Boolean(document.activeElement?.closest("dialog")),
+    ),
+  ).toBe(true);
+  await expect(page.locator(".paper")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  await page.screenshot({
+    path: test.info().outputPath("demo-dark-source.png"),
+    fullPage: true,
   });
-  const chatButton = page.getByRole("button", { name: "Chat", exact: true });
-  await expect(documentButton).toBeVisible();
-  await documentButton.click();
+  await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("region", { name: "Source document", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Sample conversation" }),
-  ).toBeHidden();
-  await chatButton.click();
-  await expect(
-    page.getByRole("region", { name: "Sample conversation" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "View source · page 1" }).click();
-  await expect(documentButton).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("mark")).toBeInViewport();
+    page.getByRole("button", { name: "View source · page 1", exact: true }),
+  ).toBeFocused();
   await page.getByRole("button", { name: "Finance", exact: true }).click();
+  await page
+    .getByRole("button", { name: "View source · page 1", exact: true })
+    .click();
   await expect(page.locator("#source-heading")).toHaveText(
     "02 / Revenue overview",
   );
-  await expect(page.locator("mark")).toHaveCount(0);
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(
-    page.getByRole("region", { name: "Source document", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Sample conversation" }),
-  ).toBeVisible();
+  await expect(page.locator("mark")).toContainText("$1.2 million");
 });

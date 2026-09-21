@@ -11,6 +11,23 @@ test("visitor inspects all three prepared samples without model requests", async
     }
   });
   await page.goto("/");
+  const navigation = page.getByRole("navigation", { name: "Demo navigation" });
+  await navigation
+    .getByRole("button", { name: "Dashboard", exact: true })
+    .click();
+  await expect(
+    page.getByText("Simulated example activity · Not your account data"),
+  ).toBeVisible();
+  await navigation
+    .getByRole("button", { name: "Documents", exact: true })
+    .click();
+  await expect(
+    page.getByRole("table", { name: "Demo documents" }),
+  ).toBeVisible();
+  await navigation.getByRole("button", { name: "Chat", exact: true }).click();
+  await expect(
+    page.getByRole("table", { name: "Demo documents" }),
+  ).toBeHidden();
   await expect(
     page.getByRole("heading", {
       name: "Your documents. Clear answers. Visible evidence.",
@@ -28,6 +45,10 @@ test("visitor inspects all three prepared samples without model requests", async
     await page.getByRole("button", { name: "View source · page 1" }).click();
     await expect(page.locator("mark")).toContainText(evidence);
     await expect(page.locator("mark")).toBeInViewport();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "View source · page 1" }),
+    ).toBeFocused();
   }
   await expect(
     page.getByRole("button", { name: "Paid plan not yet available" }),

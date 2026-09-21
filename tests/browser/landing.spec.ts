@@ -4,6 +4,11 @@ test("landing explains the current pilot and its calls to action work", async ({
   page,
 }) => {
   await page.goto("/");
+  for (const href of await page
+    .locator('a[href^="#"]')
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href")!))) {
+    await expect(page.locator(href)).toHaveCount(1);
+  }
   await expect(
     page.getByRole("heading", {
       name: "From a file to a source you can check.",
