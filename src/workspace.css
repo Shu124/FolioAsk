@@ -40,6 +40,55 @@
   display: grid;
   gap: 16px;
 }
+.settings-navigation {
+  flex-wrap: wrap;
+  margin: 20px 0;
+  gap: 8px;
+}
+.settings-navigation button {
+  min-width: 110px;
+}
+#project-settings .settings-panel {
+  max-width: 820px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  background: white;
+}
+#project-settings .settings-panel > section {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+#project-settings .settings-panel > #password-settings {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+#project-settings .settings-panel h3 {
+  margin-top: 0;
+}
+#project-settings .settings-panel form {
+  max-width: 540px;
+}
+#project-settings .settings-panel form > button {
+  justify-self: start;
+  color: white;
+  background: #225de0;
+  border-color: #225de0;
+}
+:root[data-theme="dark"] #project-settings .settings-panel {
+  background: #172235;
+}
+@media (max-width: 760px) {
+  #project-settings .settings-panel {
+    padding: 20px;
+  }
+  .settings-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

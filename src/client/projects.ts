@@ -150,6 +150,7 @@ export function mountProjects(
         signedOut(message);
         history.replaceState(null, "", "/app");
       },
+      appearance,
     );
     // Commit the project URL before the chat reads its conversation selection.
     show(activeView);

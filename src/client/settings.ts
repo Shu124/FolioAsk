@@ -8,10 +8,55 @@ export function mountSettings(
   api: Api,
   renamed: (name: string) => void,
   reauthenticate: (message: string) => void,
+  appearance: HTMLElement,
 ) {
   root.innerHTML = `<section><h3>Account</h3><p id="profile-email"></p><p id="profile-providers" class="quiet"></p><form id="profile-form"><label>Display name<input name="name" required maxlength="100"></label><button>Save name</button></form><p role="status" aria-label="Account settings status" id="settings-status"></p></section><section><h3>Project</h3><form id="rename-form"><label>Rename project<input name="name" required maxlength="100"></label><button>Save project name</button></form></section><section><h3>Plan and usage</h3><p>Controlled free pilot</p><p id="settings-usage">Loading usage…</p><p class="quiet">Public, non-sensitive, operator-approved fixtures only. No paid subscription is active.</p></section><section id="password-settings" hidden><h3>Change password</h3><p class="quiet">Changing your password signs out all FolioAsk sessions.</p><form id="password-form"><label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required maxlength="256"></label><label>New password<input type="password" name="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password<input type="password" name="confirm" autocomplete="new-password" required minlength="12" maxlength="256"></label><button>Change password</button></form></section>`;
   let disposed = false;
   const status = root.querySelector<HTMLElement>("#settings-status")!;
+  const [accountSection, projectSection, usageSection, passwordSection] = [
+    ...root.querySelectorAll<HTMLElement>(":scope > section"),
+  ];
+  const accountPanel = document.createElement("div");
+  accountPanel.append(accountSection, passwordSection);
+  const sections = {
+    Account: accountPanel,
+    Project: projectSection,
+    Appearance: appearance,
+    Usage: usageSection,
+  };
+  const navigation = document.createElement("nav");
+  navigation.className = "settings-navigation section-tabs";
+  navigation.setAttribute("aria-label", "Settings sections");
+  root.prepend(navigation, status);
+  const selectSection = (name: keyof typeof sections, remember = true) => {
+    for (const [key, panel] of Object.entries(sections))
+      panel.hidden = key !== name;
+    for (const button of navigation.querySelectorAll("button"))
+      button.setAttribute("aria-pressed", String(button.textContent === name));
+    if (remember) {
+      const url = new URL(location.href);
+      url.searchParams.set("settings", name.toLowerCase());
+      history.replaceState(null, "", url.pathname + url.search);
+      status.textContent = "";
+    }
+    if (name === "Usage") void refreshUsage();
+  };
+  for (const name of Object.keys(sections) as (keyof typeof sections)[]) {
+    const panel = sections[name];
+    panel.classList.add("settings-panel");
+    root.append(panel);
+    const button = document.createElement("button");
+    button.textContent = name;
+    button.onclick = () => selectSection(name);
+    navigation.append(button);
+  }
+  const requested = new URL(location.href).searchParams.get("settings");
+  selectSection(
+    (Object.keys(sections) as (keyof typeof sections)[]).find(
+      (name) => name.toLowerCase() === requested,
+    ) ?? "Account",
+    false,
+  );
   const profileForm = root.querySelector<HTMLFormElement>("#profile-form")!;
   const renameForm = root.querySelector<HTMLFormElement>("#rename-form")!;
   const passwordForm = root.querySelector<HTMLFormElement>("#password-form")!;
