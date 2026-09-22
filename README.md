@@ -237,6 +237,22 @@ Cloudflare preview deployment for the actual R2-backed upload integration.
 
 ### Storage safeguards and upgrade prompts (migration 006)
 
+PDF runtime troubleshooting: `npm run test:workerd` sends the generated synthetic
+PDF through the real upload route inside local Cloudflare workerd, with in-memory
+test storage, both with and without Node compatibility. It does not use `.env`,
+Supabase, R2, or Gemini credentials. This complements Node and browser tests; it
+does not establish that the hosted deployment uses identical settings.
+
+Unexpected PDF processing errors return `PDF_PROCESSING_UNAVAILABLE` (503) and a
+support reference instead of incorrectly blaming the file. Cloudflare runtime
+logs tagged `[folioask:pdf-failure]` contain only that random reference, a fixed
+processing stage, and a fixed error category. No exception message, stack,
+filename, document text, or account data is logged by this diagnostic. Known
+invalid/encrypted PDFs still return 422. Cleanup failures are logged separately
+and cannot mask the original processing result. The local runtime dependencies
+override two transitive packages to patched versions; keep these overrides
+reviewed when updating Miniflare.
+
 Free accounts have **3 lifetime uploads, 10 MB per PDF, 30 MB total original-file
 storage, and 20 lifetime successful answers**, shared across every project.
 These are not monthly allowances. Trash retains the original and does not free

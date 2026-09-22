@@ -1,5 +1,6 @@
 import { getDocumentProxy } from "unpdf";
 import { HttpError, json } from "./http.ts";
+import { pdfFailure, type PdfStage } from "./pdf-errors.ts";
 import {
   FREE_LIMITS,
   planUsage,
@@ -103,14 +104,17 @@ async function readFile(request: Request) {
 
 async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
   let pdf;
+  let stage: PdfStage = "open";
   try {
     pdf = await getDocumentProxy(bytes.slice());
     if (pdf.numPages > 20)
       throw new HttpError(413, "Free files must contain at most 20 pages.");
     const pages: SourcePage[] = [];
     for (let number = 1; number <= pdf.numPages; number++) {
+      stage = "page";
       const page = await pdf.getPage(number);
       const viewport = page.getViewport({ scale: 1 });
+      stage = "text";
       const content = await page.getTextContent();
       const passages: Passage[] = [];
       for (const item of content.items) {
@@ -142,6 +146,7 @@ async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
           },
         });
       }
+      stage = "operators";
       if (!passages.length && (await page.getOperatorList()).fnArray.length > 0)
         throw new HttpError(
           422,
@@ -159,12 +164,14 @@ async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
     return pages;
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    throw new HttpError(
-      422,
-      "This PDF cannot be read. Use a valid, unencrypted selectable-text PDF.",
-    );
+    throw pdfFailure(error, stage);
   } finally {
-    await pdf?.loadingTask.destroy();
+    try {
+      await pdf?.loadingTask.destroy();
+    } catch (error) {
+      // Cleanup must not hide the original failure or discard valid extraction.
+      pdfFailure(error, "cleanup");
+    }
   }
 }
 
