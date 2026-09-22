@@ -1,10 +1,14 @@
 import type { PlanUsage } from "../server/storage-limits";
 import { labelWithIcon } from "./icons";
+import { mountAiCapacity } from "./ai-capacity";
+import type { Api } from "./documents";
 
 export function mountPlanUsage(
   root: HTMLElement,
   mode: "storage" | "answers" | "all",
+  api?: Api,
 ) {
+  const aiCapacity = api ? mountAiCapacity(root, api) : undefined;
   root.classList.add("plan-usage");
   root.hidden = true;
   root.innerHTML = `<div class="plan-usage-summary"><div><strong>Free pilot allowance</strong><p class="storage-label"></p></div><button type="button">Upgrade plan</button></div><meter min="0" max="100" value="0" aria-label="Account storage used"></meter><p class="plan-notice" role="status"></p><p class="plan-footnote quiet">Account-wide limits do not reset monthly. Files in Trash still count toward storage.</p>`;
@@ -34,6 +38,7 @@ export function mountPlanUsage(
   });
   return {
     update(usage: PlanUsage) {
+      void aiCapacity?.refresh();
       const used = usage.storedBytes + usage.reservedBytes;
       const uploadFull =
         usage.uploadsRemaining === 0 || usage.storageRemainingBytes === 0;
@@ -88,6 +93,7 @@ export function mountPlanUsage(
         mode === "answers";
     },
     dispose() {
+      aiCapacity?.dispose();
       dialog.close();
       dialog.remove();
     },

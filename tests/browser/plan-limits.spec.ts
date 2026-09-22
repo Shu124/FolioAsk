@@ -43,6 +43,62 @@ async function account(page: Page) {
   };
 }
 
+test("shared AI warnings are distinct from account limits, preserve drafts, and recover", async ({
+  page,
+}) => {
+  let state = "warning";
+  await page.route("**/api/ai-capacity", (route) =>
+    route.fulfill({ json: { state } }),
+  );
+  const user = await account(page);
+  await user.upload();
+  await page.reload();
+  await user.navigate("Chat");
+  const shared = page.getByRole("region", { name: "Shared AI capacity" });
+  await expect(shared).toContainText("At least 80%");
+  await page
+    .getByLabel("Your question", { exact: true })
+    .fill("When are shop drawings due?");
+  await page.route(`**/api/workspaces/${user.workspace}/answers`, (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 429,
+          json: {
+            error:
+              "Shared free AI capacity is paused. Your draft is preserved; no answer allowance was used.",
+          },
+        })
+      : route.continue(),
+  );
+  state = "paused";
+  await page
+    .getByRole("button", { name: "Ask selected document", exact: true })
+    .click();
+  await expect(page.getByLabel("Your question", { exact: true })).toHaveValue(
+    "When are shop drawings due?",
+  );
+  await expect(shared).toContainText("Upgrading cannot bypass");
+  await expect(page.locator("#answer-usage")).toContainText("20 of 20");
+  state = "available";
+  await shared.getByRole("button", { name: "Refresh AI status" }).click();
+  await expect(shared).toBeHidden();
+  state = "warning";
+  await user.navigate("Settings");
+  await page.getByRole("button", { name: "Usage", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Shared AI capacity" }),
+  ).toContainText("At least 80%");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("shared-ai-warning.png"),
+    fullPage: true,
+  });
+});
+
 test("free upload limit shows a truthful upgrade prompt, retains saved files and survives reload", async ({
   page,
 }) => {

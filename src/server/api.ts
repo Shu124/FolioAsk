@@ -5,6 +5,7 @@ import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { documentRoute, type DocumentServices } from "./documents.ts";
 import { answerRoute, type AnswerServices } from "./answers.ts";
 import { activityRoute, type ActivityServices } from "./activity.ts";
+import type { AiQuota } from "./ai-capacity.ts";
 
 const SESSION_SECONDS = 24 * 60 * 60;
 export function createApi(deps: {
@@ -14,6 +15,7 @@ export function createApi(deps: {
   documents?: DocumentServices;
   answers?: AnswerServices;
   activity?: ActivityServices;
+  aiQuota?: AiQuota;
 }) {
   const { store, auth } = deps;
   const now = deps.now ?? Date.now;
@@ -114,6 +116,14 @@ export function createApi(deps: {
         if (accountResponse) response = accountResponse;
         else if (path === "/session" && method === "GET")
           response = json({ email: session.account.email });
+        else if (path === "/ai-capacity" && method === "GET")
+          response = json(
+            deps.answers?.provider?.mode === "simulated"
+              ? { state: "simulated" }
+              : deps.aiQuota && deps.answers?.provider?.mode === "live"
+                ? await deps.aiQuota.snapshot()
+                : { state: "unavailable" },
+          );
         else if (path === "/session" && method === "DELETE") {
           await store.deleteSession(hash);
           response = new Response(null, {

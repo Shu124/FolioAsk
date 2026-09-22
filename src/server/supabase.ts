@@ -9,6 +9,7 @@ import type { DocumentStore, DocumentRecord } from "./documents.ts";
 import { HttpError } from "./http.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 import type { ActivityStore, ActiveTime } from "./activity.ts";
+import { sharedAiQuota, type AiQuota } from "./ai-capacity.ts";
 
 export interface SupabaseConfig {
   SUPABASE_URL: string;
@@ -17,6 +18,7 @@ export interface SupabaseConfig {
 export function supabaseAdapters(config: SupabaseConfig): {
   store: Store & DocumentStore & AnswerStore & ActivityStore;
   auth: IdentityProvider;
+  aiQuota: AiQuota;
 } {
   async function call(
     path: string,
@@ -43,6 +45,9 @@ export function supabaseAdapters(config: SupabaseConfig): {
   }
   const eq = encodeURIComponent;
   return {
+    aiQuota: sharedAiQuota((name, body) =>
+      call(`/rest/v1/rpc/${name}`, "POST", body),
+    ),
     auth: {
       async account(id) {
         const result = await call(`/auth/v1/admin/users/${eq(id)}`);

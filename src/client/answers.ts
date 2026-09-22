@@ -23,7 +23,7 @@ export function mountAnswers(
   const usagePanel = document.createElement("section");
   usagePanel.setAttribute("aria-label", "Answer allowance");
   root.querySelector("#answer-usage")!.after(usagePanel);
-  const planUsage = mountPlanUsage(usagePanel, "answers");
+  const planUsage = mountPlanUsage(usagePanel, "answers", api);
   let allowance: PlanUsage | undefined;
   const heading = root.querySelector<HTMLElement>("h3")!;
   heading.before(

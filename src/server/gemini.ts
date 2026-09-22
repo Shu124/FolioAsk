@@ -1,8 +1,22 @@
 import type { ModelProvider, Evidence, ConversationTurn } from "./answers.ts";
 import { HttpError } from "./http.ts";
+import {
+  checkRequestSize,
+  estimatedInputTokens,
+  type AiQuota,
+  type FreeModel,
+} from "./ai-capacity.ts";
 
-export function freeGemini(apiKey: string): ModelProvider {
-  async function call(model: string, method: string, body: unknown) {
+export function freeGemini(apiKey: string, quota: AiQuota): ModelProvider {
+  async function call(
+    model: FreeModel,
+    method: string,
+    body: unknown,
+    requests = 1,
+  ) {
+    const tokens = estimatedInputTokens(body, requests);
+    checkRequestSize(model, requests, tokens);
+    await quota.reserve(model, requests, tokens);
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:${method}`,
       {
@@ -30,19 +44,33 @@ export function freeGemini(apiKey: string): ModelProvider {
     indexKey: "gemini-embedding-001:768:v1",
     async embed(texts, task) {
       const vectors: number[][] = [];
-      for (let offset = 0; offset < texts.length; offset += 50) {
+      const items = texts.map((text) => ({
+        model: "models/gemini-embedding-001",
+        content: { parts: [{ text }] },
+        taskType: task === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+        outputDimensionality: 768,
+      }));
+      if (!items.length) return vectors;
+      // Reject jobs that cannot fit even an empty window BEFORE spending quota.
+      // Count each embedding item, not just each batch HTTP envelope.
+      const batches = [];
+      for (let offset = 0; offset < items.length; offset += 50)
+        batches.push({ requests: items.slice(offset, offset + 50) });
+      checkRequestSize(
+        "gemini-embedding-001",
+        items.length,
+        batches.reduce(
+          (total, body) =>
+            total + estimatedInputTokens(body, body.requests.length),
+          0,
+        ),
+      );
+      for (const body of batches) {
         const response = await call(
           "gemini-embedding-001",
           "batchEmbedContents",
-          {
-            requests: texts.slice(offset, offset + 50).map((text) => ({
-              model: "models/gemini-embedding-001",
-              content: { parts: [{ text }] },
-              taskType:
-                task === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
-              outputDimensionality: 768,
-            })),
-          },
+          body,
+          body.requests.length,
         );
         if (!Array.isArray(response.embeddings))
           throw new HttpError(503, "Free embedding service is unavailable.");
@@ -59,7 +87,7 @@ export function freeGemini(apiKey: string): ModelProvider {
       evidence: Evidence[],
       history: ConversationTurn[] = [],
     ) {
-      const response = await call("gemini-2.5-flash", "generateContent", {
+      const response = await call("gemini-3.5-flash-lite", "generateContent", {
         systemInstruction: {
           parts: [
             {

@@ -405,10 +405,13 @@ References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/wo
 2. In ignored `.env`, set `GEMINI_FREE_API_KEY` and, after checking the project,
    `GEMINI_FREE_PROJECT_CONFIRMED=yes`. Never put the key in browser code, a
    `VITE_` variable, Git, screenshots, or chat.
-3. Run `npm run test:live`. This submits only the generated synthetic construction
+3. Apply and activate migration 007 using the instructions below. Set
+   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in ignored `.env` to the SAME
+   database used by production. Run `npm run test:live`. This submits only the generated synthetic construction
    fixture through the real application upload, extraction, retrieval, answer,
    and citation-validation API path. It uses local storage and simulated identity
-   so this is not a Supabase/R2 deployment test. A missing key exits without making
+   for documents/identity, but uses the shared Supabase AI quota ledger. It is not
+   an R2 deployment test. A missing key exits without making
    a provider call; a failed provider/answer check exits unsuccessfully.
 4. Inspect the reported PASS/FAIL. One correct answer does **not** establish model
    accuracy, speed, cost, prompt-injection resistance, or regulatory compliance.
@@ -417,12 +420,12 @@ References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/wo
    `FOLIO_TEST_MODE=1` and `FOLIO_LIVE_SMOKE=1`, then restart `npm run dev`.
    Without the live flag, local answers are explicitly labelled simulated.
    Automated browser tests force simulation even if your local live flag is set.
-6. For a Cloudflare controlled preview, run `003_answers.sql` in Supabase, set the
+6. For a Cloudflare controlled preview, apply migrations through 007 in Supabase, set the
    key as a Pages secret and the confirmation flag as a server variable, retain
    the exact reviewed-file allowlist, and redeploy. Removing the key/confirmation
    pauses new answers while saved content remains readable.
 
-The current adapter pins `gemini-2.5-flash` and `gemini-embedding-001` (768
+The current adapter pins `gemini-3.5-flash-lite` and `gemini-embedding-001` (768
 dimensions). It has no paid fallback. Availability/quota failures preserve the
 question and successful-answer allowance. Verify those models and free terms in
 your project before the check; provider offerings may change.
@@ -441,6 +444,76 @@ References: [Gemini API keys](https://ai.google.dev/gemini-api/docs/api-key),
 [embeddings](https://ai.google.dev/gemini-api/docs/embeddings),
 [structured output](https://ai.google.dev/gemini-api/docs/structured-output),
 [current pricing/free-tier terms](https://ai.google.dev/gemini-api/docs/pricing).
+
+### Shared free AI safeguards (migration 007)
+
+These are **project-wide**, not per-user allowances. The user confirmed these
+model quotas in AI Studio on 2026-09-22; they are not universal Google limits.
+
+| Model | Confirmed Google RPM / input TPM / RPD | Warn at 80% | App stop caps |
+| --- | --- | --- | --- |
+| `gemini-3.5-flash-lite` | 15 / 250,000 / 500 | 12 / 200,000 / 400 | 13 / 225,000 / 450 |
+| `gemini-embedding-001` | 100 / 30,000 / 1,000 | 80 / 24,000 / 800 | 90 / 27,000 / 900 |
+
+Before deploying this change:
+
+1. Keep Google's project on **Free**, with paid billing disabled. Recheck both
+   model quotas in AI Studio. If they are lower, leave AI disabled and adjust the
+   policy/code/tests first. `GEMINI_FREE_PROJECT_CONFIRMED=yes` is an operator
+   acknowledgement, not a billing API check or a spending cap.
+2. Run the complete `supabase/migrations/007_ai_capacity.sql` once in Supabase
+   SQL Editor, after existing migrations 001–006. It creates two private tables
+   and service-role-only RPCs, initially **disabled**. It does not alter documents.
+3. Use a dedicated Google project. Production, preview, local live mode and smoke
+   tests MUST use the same Supabase ledger. Stop old/unmetered deployments and
+   other scripts using that Google project. Existing Google usage is not imported:
+   for first activation, stop all calls and wait until the next midnight Pacific
+   plus two minutes, so the fresh ledger starts with an unused daily allowance.
+4. Deploy this commit, then enable both models in SQL Editor:
+
+   ```sql
+   update public.folio_ai_policy set enabled = true;
+   select public.folio_ai_capacity();
+   ```
+
+   The returned state should be `available`. To pause new calls later:
+
+   ```sql
+   update public.folio_ai_policy set enabled = false;
+   ```
+
+5. Ask one question about an approved synthetic PDF. Check its answer/citations
+   and the SQL capacity result. Chat and Settings → Usage warn at 80%, refresh
+   after a request and every minute, and offer a manual refresh when paused.
+   No new Cloudflare secret is required beyond the existing Gemini/Supabase ones.
+
+Each outbound attempt reserves capacity atomically before calling Google.
+Failures and ambiguous timeouts remain counted; successful-answer allowance is
+still charged only when an answer is saved. Missing SQL, unavailable accounting,
+or a reached cap blocks new calls without a paid fallback. Neither a new account
+nor an upgrade can bypass these shared caps. Saved files and answers stay readable.
+
+Minute limits deliberately use a **rolling 120-second safety window**, stricter
+than Google's minute limits, to allow for request latency. Daily accounting uses
+midnight `America/Los_Angeles` (DST-aware), retaining two minutes of boundary
+overlap. Embedding batch items each count as a request, conservatively. Input
+tokens are estimated using full serialized UTF-8 bytes plus framing, not measured
+by Google's tokenizer. Large indexing jobs that cannot fit a fresh window are
+rejected before spending quota; use a smaller approved PDF. Completed indexes
+are reused. A first answer can require multiple embedding calls plus generation.
+
+This is an **application safety buffer, not a guaranteed zero-bill ceiling**.
+It cannot count calls outside this ledger, account for provider quota changes,
+or enforce Google billing status. Keep billing disabled for a no-paid-use policy.
+Warnings are snapshots, not reservations; a concurrent request can consume the
+remaining capacity. Limits below 100% can therefore pause work earlier than the
+Google dashboard suggests. Do not reset/delete ledger rows to bypass a pause.
+See [Google's project-wide quota and Pacific reset rules](https://ai.google.dev/gemini-api/docs/rate-limits).
+
+Validation: deterministic tests exercise the actual migration in single-connection
+PGlite, provider admission/failure paths and browser warnings. They do not prove
+multi-session PostgreSQL lock behavior, hosted deployment activation or current
+Google quota availability; those remain operator/release checks.
 
 ## Implementation progress and remaining work
 

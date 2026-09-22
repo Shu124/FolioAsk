@@ -3,29 +3,40 @@ import { createApi } from "../src/server/api.ts";
 import { freeGemini } from "../src/server/gemini.ts";
 import { SqliteStore } from "../src/server/sqlite-store.ts";
 import { samplePdf } from "../tests/fixtures/pdf.ts";
+import { supabaseAdapters } from "../src/server/supabase.ts";
 
 if (
   !process.env.GEMINI_FREE_API_KEY ||
+  !process.env.SUPABASE_URL ||
+  !process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.GEMINI_FREE_PROJECT_CONFIRMED !== "yes"
 ) {
   console.error(
-    "Live check NOT RUN. Configure GEMINI_FREE_API_KEY and GEMINI_FREE_PROJECT_CONFIRMED=yes in ignored .env after verifying the project is on the free tier. Never paste the key into chat.",
+    "Live check NOT RUN. Configure the Gemini free-tier key/confirmation and Supabase URL/service-role key in ignored .env. Apply and activate migration 007 so this check shares the production quota ledger. Never paste keys into chat.",
   );
   process.exit(2);
 }
 const store = new SqliteStore(":memory:");
+const { aiQuota } = supabaseAdapters({
+  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
 const pdf = await samplePdf();
 const approvedHash = Buffer.from(
   await crypto.subtle.digest("SHA-256", pdf),
 ).toString("hex");
 const api = createApi({
   store,
+  aiQuota,
   auth: {
     signIn: async (email) => ({ id: email, email }),
     signUp: async () => {},
   },
   documents: { store, blobs: store, approvedHashes: [approvedHash] },
-  answers: { store, provider: freeGemini(process.env.GEMINI_FREE_API_KEY) },
+  answers: {
+    store,
+    provider: freeGemini(process.env.GEMINI_FREE_API_KEY, aiQuota),
+  },
 });
 let cookie = "";
 async function call(path: string, method = "GET", body?: unknown) {

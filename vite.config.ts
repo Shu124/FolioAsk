@@ -20,18 +20,26 @@ export default defineConfig(({ mode }) => {
           let store: SqliteStore | undefined;
           let api: ReturnType<typeof createApi> | undefined;
           if (fixtureMode) {
+            const liveQuota = configured
+              ? supabaseAdapters({
+                  SUPABASE_URL: env.SUPABASE_URL!,
+                  SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY!,
+                }).aiQuota
+              : undefined;
             mkdirSync(".local", { recursive: true });
             store = new SqliteStore(".local/pilot.sqlite");
             api = createApi({
               store,
+              aiQuota: liveQuota,
               activity: { store },
               answers: {
                 store,
                 provider:
                   env.FOLIO_LIVE_SMOKE === "1"
                     ? env.GEMINI_FREE_API_KEY &&
-                      env.GEMINI_FREE_PROJECT_CONFIRMED === "yes"
-                      ? freeGemini(env.GEMINI_FREE_API_KEY)
+                      env.GEMINI_FREE_PROJECT_CONFIRMED === "yes" &&
+                      liveQuota
+                      ? freeGemini(env.GEMINI_FREE_API_KEY, liveQuota)
                       : undefined
                     : controlledProvider,
               },

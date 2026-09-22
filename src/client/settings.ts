@@ -22,7 +22,7 @@ export function mountSettings(
   const planPanel = document.createElement("section");
   planPanel.setAttribute("aria-label", "Plan allowance");
   usageSection.append(planPanel);
-  const planUsage = mountPlanUsage(planPanel, "all");
+  const planUsage = mountPlanUsage(planPanel, "all", api);
   const accountPanel = document.createElement("div");
   accountPanel.append(accountSection, passwordSection);
   const sections = {

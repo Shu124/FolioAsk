@@ -36,7 +36,7 @@ export async function onRequest(context: {
       provider:
         context.env.GEMINI_FREE_API_KEY &&
         context.env.GEMINI_FREE_PROJECT_CONFIRMED === "yes"
-          ? freeGemini(context.env.GEMINI_FREE_API_KEY)
+          ? freeGemini(context.env.GEMINI_FREE_API_KEY, adapters.aiQuota)
           : undefined,
     },
     documents: context.env.ORIGINALS

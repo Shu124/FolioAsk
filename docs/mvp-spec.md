@@ -197,7 +197,7 @@ not prescribed by this specification.
 | Authentication, metadata, extracted text, vector search | Supabase and pgvector |
 | PDF extraction/viewing | PDF.js |
 | Printed-text OCR | Browser-based Tesseract.js initially |
-| Document answers | Gemini 2.5 Flash; evaluate Flash-Lite before substituting |
+| Document answers | Gemini 3.5 Flash-Lite; user-approved 2026-09-22 after a successful synthetic answer/citation smoke check (not a full accuracy evaluation) |
 | Text embeddings | Gemini Embedding 001 |
 | Payments | Stripe, conditional on merchant approval and supported billing |
 | Traffic measurement | Google Analytics |
