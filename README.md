@@ -249,9 +249,19 @@ logs tagged `[folioask:pdf-failure]` contain only that random reference, a fixed
 processing stage, category, and error signature, plus the types (not values) of
 eight predefined runtime APIs. The safe stage/signature also appears in the
 upload error so a screenshot can identify known failures without request logs.
-Unknown signatures remain `unclassified`; message fragments are never copied.
-No exception message, stack,
-filename, document text, or account data is logged by this diagnostic. Known
+Unknown signatures remain `unclassified`. A temporary server-only `probe` field
+is additionally emitted for `open` failures on the exact bundled synthetic
+`contract.pdf` SHA-256 (not a client-supplied filename). It includes a message
+restricted to an allowlist of engine terminology; unknown identifiers, quoted
+values and URLs are redacted. Up to five stack line/column pairs are retained,
+without stack headers, function names or source paths. No raw exception message,
+stack, filename, document text, or account data is emitted. Other hashes and
+stages retain the restricted diagnostic above. Remove `src/server/pdf-probe.ts`
+and its call after the hosted parser failure is resolved; this instrumentation
+does not itself fix uploads. No environment variable or DB migration is needed.
+After deployment, reproduce once with the bundled fixture and collect only the
+`[folioask:pdf-failure]` log entry including `probe` (not request headers/cookies).
+Known
 invalid/encrypted PDFs still return 422. Cleanup failures are logged separately
 and cannot mask the original processing result. The local runtime dependencies
 override two transitive packages to patched versions; keep these overrides

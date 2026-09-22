@@ -1,4 +1,5 @@
 import { HttpError } from "./http.ts";
+import { syntheticPdfProbe } from "./pdf-probe.ts";
 
 export type PdfStage = "open" | "page" | "text" | "operators" | "cleanup";
 
@@ -47,7 +48,11 @@ function runtimeTypes() {
 }
 
 /** Never log the exception itself: parser messages may contain document data. */
-export function pdfFailure(error: unknown, stage: PdfStage): HttpError {
+export function pdfFailure(
+  error: unknown,
+  stage: PdfStage,
+  contentHash?: string,
+): HttpError {
   const name = error instanceof Error ? error.name : "";
   if (name === "PasswordException" || name === "InvalidPDFException")
     return new HttpError(
@@ -75,12 +80,14 @@ export function pdfFailure(error: unknown, stage: PdfStage): HttpError {
   const signature =
     signatures.find(([pattern]) => pattern.test(message))?.[1] ??
     "unclassified";
+  const probe = syntheticPdfProbe(error, stage, contentHash);
   console.error("[folioask:pdf-failure]", {
     reference,
     stage,
     category,
     signature,
     runtime: runtimeTypes(),
+    ...(probe ? { probe } : {}),
   });
   return new HttpError(
     503,

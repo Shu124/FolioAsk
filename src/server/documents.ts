@@ -102,7 +102,10 @@ async function readFile(request: Request) {
   return bytes;
 }
 
-async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
+async function extractPdf(
+  bytes: Uint8Array,
+  contentHash: string,
+): Promise<SourcePage[]> {
   let pdf;
   let stage: PdfStage = "open";
   try {
@@ -164,7 +167,7 @@ async function extractPdf(bytes: Uint8Array): Promise<SourcePage[]> {
     return pages;
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    throw pdfFailure(error, stage);
+    throw pdfFailure(error, stage, contentHash);
   } finally {
     try {
       await pdf?.loadingTask.destroy();
@@ -236,7 +239,7 @@ export async function documentRoute(
         "Your 3 lifetime uploads are used. View upgrade options for more capacity. Saved documents remain available.",
         "FREE_UPLOAD_LIMIT",
       );
-    const pages = await extractPdf(bytes);
+    const pages = await extractPdf(bytes, contentHash);
     const id = crypto.randomUUID();
     const originalKey = `${ownerId}/${id}`;
     const document: DocumentRecord = {
