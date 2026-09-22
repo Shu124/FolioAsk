@@ -120,6 +120,30 @@ The guided demo needs no R2, Gemini, Stripe, domain purchase, or secrets. Sign-i
 requires the Supabase setup below. Do not enable private uploads or charge
 customers based on this preview.
 
+### Backend compiler compatibility
+
+`npm run build` now also generates `dist/_worker.js` with the project's locked
+esbuild compiler. Pages uses this advanced-mode Worker instead of automatically
+compiling the `functions/` directory. The Worker still calls the existing API
+handler, with the same secrets and R2 binding. `public/_routes.json` restricts
+Worker invocation to `/api` and `/api/*`; other requests stay on static asset
+serving, with an `ASSETS.fetch` fallback in the Worker itself.
+
+This fixes a reproduced build incompatibility: the hosted build used Wrangler
+3.114.17 (esbuild 0.17.19), which broke PDF.js class initialization. A cold parser
+call failed setting `_isSameOrigin`; subsequent calls failed with an invalid
+`instanceof` constructor. Changing the TypeScript target alone did not fix it.
+The new compiler emits ES2020-compatible code so a subsequent old Pages bundling
+pass does not repeat that transformation bug. Keep the backend build step; the
+frontend-only Vite build does not validate the deployed PDF parser.
+
+Keep Cloudflare's build command **`npm run build`**, output **`dist`**, and your
+existing runtime settings/bindings. No SQL or secret changes are required. The
+build log should include `Pages backend compiled to dist/_worker.js`. Local
+runtime tests cover cold/repeated synthetic uploads and API/static routing;
+confirm a synthetic upload on the hosted deployment before calling it verified.
+See [Pages advanced mode](https://developers.cloudflare.com/pages/functions/advanced-mode/).
+
 Reference: [Cloudflare Pages Vite deployment](https://developers.cloudflare.com/pages/framework-guides/deploy-a-vite3-project/)
 and [build environment configuration](https://developers.cloudflare.com/pages/configuration/build-image/).
 
@@ -145,7 +169,8 @@ and [build environment configuration](https://developers.cloudflare.com/pages/co
    confirmed pilot users can use **Sign in** immediately.
 7. In Cloudflare Pages settings → Variables and Secrets, configure the same values
    for the intended environment, marking the key secret. Redeploy. The repository's
-   `functions/api/[[path]].ts` supplies the backend; this is not a static-only upload.
+   `functions/api/[[path]].ts` supplies the API handler bundled into `dist/_worker.js`;
+   this is not a static-only upload.
 8. Verify two real Supabase accounts cannot list or open one another's workspaces,
    then sign out and check that the old session no longer works. Run these checks
    on the deployed URL before inviting pilot users.

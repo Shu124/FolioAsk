@@ -10,7 +10,7 @@
     "predev": "node scripts/generate-fixtures.ts",
     "prebuild": "node scripts/generate-fixtures.ts",
     "dev": "node --use-system-ca node_modules/vite/bin/vite.js --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/build-worker.ts",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:api && npm run test:workerd && npm run test:browser",
     "test:api": "node --test tests/api/*.test.ts",
