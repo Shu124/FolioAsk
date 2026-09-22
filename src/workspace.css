@@ -390,6 +390,67 @@
 .evidence-workspace {
   display: block;
 }
+.plan-usage {
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+.plan-usage[data-level="full"],
+.plan-usage[data-level="warning"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.plan-usage-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.plan-usage p {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+.plan-usage meter {
+  width: 100%;
+  height: 0.75rem;
+  margin-top: 0.75rem;
+  accent-color: var(--blue);
+}
+.upgrade-dialog {
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+.upgrade-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+.upgrade-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.upgrade-dialog header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.upgrade-dialog section {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--subtle);
+}
 .upload-section {
   min-width: 0;
 }

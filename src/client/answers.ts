@@ -3,6 +3,8 @@ import type { DocumentRecord } from "../server/documents";
 import type { Api } from "./documents";
 import { conversations, type ConversationSummary } from "./conversations";
 import { icon, labelWithIcon } from "./icons";
+import { mountPlanUsage } from "./plan-usage";
+import type { PlanUsage } from "../server/storage-limits";
 
 export function mountAnswers(
   root: HTMLElement,
@@ -18,6 +20,11 @@ export function mountAnswers(
   const button = form.querySelector<HTMLButtonElement>("button")!;
   const status = root.querySelector<HTMLElement>("#question-status")!;
   const history = root.querySelector<HTMLElement>("#answer-history")!;
+  const usagePanel = document.createElement("section");
+  usagePanel.setAttribute("aria-label", "Answer allowance");
+  root.querySelector("#answer-usage")!.after(usagePanel);
+  const planUsage = mountPlanUsage(usagePanel, "answers");
+  let allowance: PlanUsage | undefined;
   const heading = root.querySelector<HTMLElement>("h3")!;
   heading.before(
     Object.assign(document.createElement("p"), {
@@ -72,7 +79,12 @@ export function mountAnswers(
   picker.onchange = () => openConversation(picker.value || undefined);
   newChat.onclick = () => openConversation();
   function updateControls() {
-    button.disabled = pending || disposed || selection.options.length === 0;
+    button.disabled =
+      pending ||
+      disposed ||
+      selection.options.length === 0 ||
+      !allowance ||
+      allowance.answersRemaining === 0;
     question.disabled = pending || disposed;
     selection.disabled = pending || disposed;
     picker.disabled = pending || disposed;
@@ -88,8 +100,11 @@ export function mountAnswers(
     const saved = await api<AnswerRecord[]>(
       `/workspaces/${workspaceId}/answers`,
     );
-    const usage = await api<{ answersRemaining: number }>("/usage");
+    const usage = await api<PlanUsage>("/usage");
     if (disposed) return;
+    allowance = usage;
+    planUsage.update(usage);
+    updateControls();
     answers = saved;
     if (
       threadId &&
@@ -158,7 +173,7 @@ export function mountAnswers(
   }
   form.onsubmit = (event) => {
     event.preventDefault();
-    if (pending || disposed || !selection.value) return;
+    if (pending || disposed || button.disabled || !selection.value) return;
     pending = true;
     updateControls();
     status.textContent = "Retrieving evidence and asking the model…";
@@ -185,6 +200,7 @@ export function mountAnswers(
         status.textContent =
           "Answer saved. Inspect its sources below the answer.";
       } catch (error) {
+        await refresh().catch(() => {});
         if (!disposed)
           status.textContent =
             error instanceof Error
@@ -201,6 +217,7 @@ export function mountAnswers(
     openConversation,
     dispose() {
       disposed = true;
+      planUsage.dispose();
     },
     setDocuments(documents: DocumentRecord[]) {
       trashedIds = new Set(

@@ -9,13 +9,20 @@ import type {
 import { HttpError } from "./http.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 import type { ActivityStore, ActiveTime } from "./activity.ts";
+import { SqliteStorageGuard } from "./sqlite-storage-guard.ts";
+import {
+  FREE_LIMITS,
+  type StorageOperation,
+  type StoragePolicy,
+} from "./storage-limits.ts";
 
 /** Local development/test persistence only; not imported by the Cloudflare entry. */
 export class SqliteStore
   implements Store, DocumentStore, BlobStore, AnswerStore, ActivityStore
 {
   private db: DatabaseSync;
-  constructor(filename: string) {
+  private storageGuard: SqliteStorageGuard;
+  constructor(filename: string, storagePolicy: Partial<StoragePolicy> = {}) {
     this.db = new DatabaseSync(filename);
     this.db.exec(`PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS active_time (owner_id TEXT NOT NULL,workspace_id TEXT NOT NULL,bucket INTEGER NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(owner_id,bucket));
@@ -35,6 +42,23 @@ export class SqliteStore
       this.db.exec(
         "ALTER TABLE usage ADD COLUMN answers INTEGER NOT NULL DEFAULT 0",
       );
+    this.storageGuard = new SqliteStorageGuard(this.db, storagePolicy);
+  }
+  async storageSnapshot(ownerId: string) {
+    return this.storageGuard.snapshot(ownerId);
+  }
+  async admitStorageOperation(
+    ownerId: string,
+    operation: StorageOperation,
+    now: number,
+  ) {
+    this.storageGuard.admit(ownerId, operation, now);
+  }
+  async reserveUpload(document: DocumentRecord) {
+    return this.storageGuard.reserve(document);
+  }
+  async releaseUpload(id: string, ownerId: string) {
+    this.storageGuard.release(id, ownerId);
   }
   close() {
     this.db.close();
@@ -201,15 +225,24 @@ export class SqliteStore
       this.db
         .prepare("INSERT OR IGNORE INTO usage(owner_id) VALUES (?)")
         .run(document.ownerId);
+      this.storageGuard.commit(document);
       const changed = this.db
         .prepare(
-          "UPDATE usage SET uploads=uploads+1,processedPages=processedPages+?,storedBytes=storedBytes+? WHERE owner_id=? AND uploads<3",
+          "UPDATE usage SET uploads=uploads+1,processedPages=processedPages+?,storedBytes=storedBytes+? WHERE owner_id=? AND uploads<? AND storedBytes+?<=?",
         )
-        .run(document.pages.length, document.bytes, document.ownerId);
+        .run(
+          document.pages.length,
+          document.bytes,
+          document.ownerId,
+          FREE_LIMITS.uploads,
+          document.bytes,
+          FREE_LIMITS.storageBytes,
+        );
       if (!changed.changes)
         throw new HttpError(
           429,
-          "Your 3 lifetime uploads are used. Saved documents remain available.",
+          "Your free upload or storage allowance is reached. View upgrade options for more capacity. Saved documents remain available.",
+          "FREE_UPLOAD_LIMIT",
         );
       this.db
         .prepare("INSERT INTO documents VALUES (?,?,?,?,?)")

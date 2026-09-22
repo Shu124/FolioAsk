@@ -122,6 +122,34 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async storageSnapshot(ownerId) {
+        return await call("/rest/v1/rpc/folio_storage_snapshot", "POST", {
+          p_owner: ownerId,
+        });
+      },
+      async admitStorageOperation(ownerId, operation, now) {
+        const result = await call(
+          "/rest/v1/rpc/folio_admit_storage_operation",
+          "POST",
+          { p_owner: ownerId, p_operation: operation, p_now: now },
+        );
+        if (result.error)
+          throw new HttpError(result.status, result.error, result.code);
+      },
+      async reserveUpload(document) {
+        const result = await call("/rest/v1/rpc/folio_reserve_upload", "POST", {
+          p_document: document,
+        });
+        if (result.error)
+          throw new HttpError(result.status, result.error, result.code);
+        return result.document as DocumentRecord | undefined;
+      },
+      async releaseUpload(id, ownerId) {
+        await call("/rest/v1/rpc/folio_release_upload", "POST", {
+          p_id: id,
+          p_owner: ownerId,
+        });
+      },
       async recordActiveTime(ownerId, workspaceId, bucket, milliseconds) {
         const result = await call(
           "/rest/v1/rpc/folio_record_active_time",
@@ -229,7 +257,8 @@ export function supabaseAdapters(config: SupabaseConfig): {
         const result = await call("/rest/v1/rpc/folio_commit_upload", "POST", {
           p_document: document,
         });
-        if (result.error) throw new HttpError(result.status, result.error);
+        if (result.error)
+          throw new HttpError(result.status, result.error, result.code);
         return result.document as DocumentRecord;
       },
       async putSession(session) {

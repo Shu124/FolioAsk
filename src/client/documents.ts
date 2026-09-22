@@ -5,6 +5,8 @@ import type { ConversationSummary } from "./conversations";
 import { sourceDrawer } from "./source-drawer";
 import { mountDocumentTable } from "./document-table";
 import { labelWithIcon } from "./icons";
+import { mountPlanUsage } from "./plan-usage";
+import type { PlanUsage } from "../server/storage-limits";
 
 export type Api = <T>(
   path: string,
@@ -21,6 +23,12 @@ export function mountDocuments(
   root.classList.add("evidence-workspace");
   root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet">Controlled pilot: public, non-sensitive, operator-approved fixtures only. No patient records, confidential files or specially regulated data. A checkbox is not proof of eligibility.</p><a href="/fixtures/contract.pdf" download class="citation">Download synthetic test PDF</a><p id="upload-usage"></p><form id="upload-form"><label>Choose PDF<input type="file" accept="application/pdf" required></label><button class="primary" type="submit">Upload PDF</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
   const status = root.querySelector<HTMLElement>("#upload-status")!;
+  const usagePanel = document.createElement("section");
+  usagePanel.setAttribute("aria-label", "Document allowance");
+  root.querySelector("#upload-usage")!.after(usagePanel);
+  const planUsage = mountPlanUsage(usagePanel, "storage");
+  let allowance: PlanUsage | undefined;
+  let uploading = false;
   const form = root.querySelector<HTMLFormElement>("#upload-form")!;
   form.hidden = true;
   const add = document.createElement("button");
@@ -57,6 +65,17 @@ export function mountDocuments(
   };
   const input = form.querySelector<HTMLInputElement>("input")!;
   const submit = form.querySelector<HTMLButtonElement>("button")!;
+  function updateUploadControls() {
+    const blocked =
+      !allowance ||
+      allowance.uploadsRemaining === 0 ||
+      allowance.storageRemainingBytes === 0 ||
+      allowance.uploadsPaused;
+    submit.disabled = uploading || blocked;
+    input.disabled = uploading || blocked;
+    add.disabled = uploading || blocked;
+  }
+  updateUploadControls();
   labelWithIcon(submit, "Upload", "Upload PDF");
   const preview = root.querySelector<HTMLElement>("#document-preview")!;
   let retryKey = crypto.randomUUID();
@@ -126,8 +145,14 @@ export function mountDocuments(
         signal: download.signal,
       });
       if (response.status === 401) onUnauthorized();
-      if (!response.ok)
-        throw new Error("Original unavailable. Sign in again or retry.");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(
+          typeof failure?.error === "string"
+            ? failure.error
+            : "Original unavailable. Sign in again or retry.",
+        );
+      }
       const bytes = new Uint8Array(await response.arrayBuffer());
       const { getDocumentProxy } = await import("unpdf");
       const pdf = await getDocumentProxy(bytes);
@@ -240,8 +265,11 @@ export function mountDocuments(
     }
   }
   async function refresh() {
-    const usage = await api<{ uploadsRemaining: number }>("/usage");
+    const usage = await api<PlanUsage>("/usage");
     if (disposed) return;
+    allowance = usage;
+    planUsage.update(usage);
+    updateUploadControls();
     root.querySelector("#upload-usage")!.textContent =
       `${usage.uploadsRemaining} of 3 lifetime uploads remaining`;
     const documents = await api<DocumentRecord[]>(
@@ -253,12 +281,20 @@ export function mountDocuments(
   }
   form.onsubmit = (event) => {
     event.preventDefault();
+    if (disposed || uploading || submit.disabled || !allowance) return;
     const file = input.files?.[0];
     if (!file) return;
     if (file.size > 10_000_000) {
       status.textContent = "Free files must be 10 MB or smaller.";
       return;
     }
+    if (file.size > allowance.storageRemainingBytes) {
+      status.textContent =
+        "This file exceeds your remaining free storage. Use Upgrade plan to view more-capacity options.";
+      return;
+    }
+    uploading = true;
+    updateUploadControls();
     submit.disabled = true;
     input.disabled = true;
     status.textContent = "Uploading…";
@@ -286,8 +322,9 @@ export function mountDocuments(
       if (disposed) return;
       status.textContent =
         "Connection failed. Retry this file; your retry key is preserved.";
-      submit.disabled = false;
-      input.disabled = false;
+      uploading = false;
+      updateUploadControls();
+      void refresh().catch(() => {});
     };
     xhr.ontimeout = xhr.onerror;
     xhr.onload = () => {
@@ -296,8 +333,10 @@ export function mountDocuments(
         try {
           const result = JSON.parse(xhr.responseText);
           if (xhr.status === 401) onUnauthorized();
-          if (xhr.status >= 400)
+          if (xhr.status >= 400) {
+            await refresh().catch(() => {});
             throw new Error(result.error || "Upload failed.");
+          }
           await refresh();
           status.textContent = `Uploaded ${file.name}. Your document is ready.`;
           await openDocument(result.id);
@@ -309,8 +348,8 @@ export function mountDocuments(
               ? error.message
               : "Upload failed. Retry the same file.";
         } finally {
-          submit.disabled = false;
-          input.disabled = false;
+          uploading = false;
+          updateUploadControls();
         }
       })();
     };
@@ -330,6 +369,7 @@ export function mountDocuments(
       table.dispose();
       drawer.dispose();
       answers.dispose();
+      planUsage.dispose();
       sequence++;
       activeUpload?.abort();
       activeDownload?.abort();

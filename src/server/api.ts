@@ -188,7 +188,13 @@ export function createApi(deps: {
     } catch (error) {
       response =
         error instanceof HttpError
-          ? json({ error: error.message }, error.status)
+          ? json(
+              {
+                error: error.message,
+                ...(error.code ? { code: error.code } : {}),
+              },
+              error.status,
+            )
           : json(
               {
                 error: "The service is temporarily unavailable. Please retry.",

@@ -1,5 +1,10 @@
 import { getDocumentProxy } from "unpdf";
 import { HttpError, json } from "./http.ts";
+import {
+  FREE_LIMITS,
+  planUsage,
+  type StorageGuardStore,
+} from "./storage-limits.ts";
 
 export interface Passage {
   id: string;
@@ -32,7 +37,7 @@ export interface Usage {
   processedPages: number;
   storedBytes: number;
 }
-export interface DocumentStore {
+export interface DocumentStore extends StorageGuardStore {
   setDocumentTrashed(
     id: string,
     ownerId: string,
@@ -61,7 +66,7 @@ export interface DocumentServices {
   blobs: BlobStore;
   approvedHashes: string[];
 }
-const MAX_BYTES = 10_000_000;
+const MAX_BYTES = FREE_LIMITS.fileBytes;
 
 async function readFile(request: Request) {
   if (Number(request.headers.get("content-length") || 0) > MAX_BYTES)
@@ -175,12 +180,7 @@ export async function documentRoute(
   const { store, blobs } = services;
   if (path === "/usage" && request.method === "GET") {
     const usage = await store.usage(ownerId);
-    return json({
-      ...usage,
-      uploadsRemaining: Math.max(0, 3 - usage.uploads),
-      answersRemaining: Math.max(0, 20 - usage.answers),
-      uploadLimit: 3,
-    });
+    return json(planUsage(usage, await store.storageSnapshot(ownerId)));
   }
   const workspaceMatch = path.match(/^\/workspaces\/([^/]+)\/documents$/);
   if (workspaceMatch) {
@@ -200,6 +200,7 @@ export async function documentRoute(
     const name = url.searchParams.get("name") || "document.pdf";
     if (name.length > 200 || /[\u0000-\u001f]/.test(name))
       throw new HttpError(400, "Use a filename of at most 200 characters.");
+    await store.admitStorageOperation(ownerId, "upload", now);
     const bytes = await readFile(request);
     const contentHash = Array.from(
       new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
@@ -222,10 +223,11 @@ export async function documentRoute(
         );
       return json(previous, 200);
     }
-    if ((await store.usage(ownerId)).uploads >= 3)
+    if ((await store.usage(ownerId)).uploads >= FREE_LIMITS.uploads)
       throw new HttpError(
         429,
-        "Your 3 lifetime uploads are used. Saved documents remain available.",
+        "Your 3 lifetime uploads are used. View upgrade options for more capacity. Saved documents remain available.",
+        "FREE_UPLOAD_LIMIT",
       );
     const pages = await extractPdf(bytes);
     const id = crypto.randomUUID();
@@ -243,6 +245,10 @@ export async function documentRoute(
       createdAt: now,
       classification: "public-approved",
     };
+    const replay = await store.reserveUpload(document);
+    if (replay) return json(replay, 200);
+    // Reservations have no automatic expiry: a failed/ambiguous storage write
+    // can still leave an object. Keep its capacity charged until reconciliation.
     await blobs.put(originalKey, bytes);
     let committed: DocumentRecord;
     try {
@@ -250,10 +256,16 @@ export async function documentRoute(
     } catch (error) {
       // A database timeout may follow a successful commit. Never remove a blob
       // unless the store gave a definitive rejection; uncertain writes are reconciled.
-      if (error instanceof HttpError) await blobs.delete(originalKey);
+      if (error instanceof HttpError) {
+        await blobs.delete(originalKey);
+        await store.releaseUpload(id, ownerId);
+      }
       throw error;
     }
-    if (committed.id !== id) await blobs.delete(originalKey);
+    if (committed.id !== id) {
+      await blobs.delete(originalKey);
+      await store.releaseUpload(id, ownerId);
+    }
     return json(committed, committed.id === id ? 201 : 200);
   }
   const mutation = path.match(/^\/documents\/([^/]+)(\/restore)?$/);
@@ -276,6 +288,7 @@ export async function documentRoute(
         410,
         "This document is in Trash. Restore it from Documents first.",
       );
+    await store.admitStorageOperation(ownerId, "read", now);
     const bytes = await blobs.get(document.originalKey);
     if (!bytes) throw new HttpError(503, "Original temporarily unavailable.");
     return new Response(bytes.slice().buffer, {

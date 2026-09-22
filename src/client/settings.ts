@@ -2,6 +2,8 @@ import type { Account, Workspace } from "../server/contracts";
 import type { Api } from "./documents";
 import { passwordVisibility } from "./password-field";
 import { labelWithIcon } from "./icons";
+import { mountPlanUsage } from "./plan-usage";
+import type { PlanUsage } from "../server/storage-limits";
 
 export function mountSettings(
   root: HTMLElement,
@@ -17,6 +19,10 @@ export function mountSettings(
   const [accountSection, projectSection, usageSection, passwordSection] = [
     ...root.querySelectorAll<HTMLElement>(":scope > section"),
   ];
+  const planPanel = document.createElement("section");
+  planPanel.setAttribute("aria-label", "Plan allowance");
+  usageSection.append(planPanel);
+  const planUsage = mountPlanUsage(planPanel, "all");
   const accountPanel = document.createElement("div");
   accountPanel.append(accountSection, passwordSection);
   const sections = {
@@ -180,12 +186,9 @@ export function mountSettings(
     });
   async function refreshUsage() {
     try {
-      const usage = await api<{
-        uploadsRemaining: number;
-        answersRemaining: number;
-        storedBytes: number;
-      }>("/usage");
+      const usage = await api<PlanUsage>("/usage");
       if (!disposed) {
+        planUsage.update(usage);
         const summary = root.querySelector("#settings-usage")!;
         summary.replaceChildren();
         for (const [name, glyph, value, detail] of [
@@ -232,6 +235,7 @@ export function mountSettings(
     refreshUsage,
     dispose() {
       disposed = true;
+      planUsage.dispose();
       root.replaceChildren();
     },
   };

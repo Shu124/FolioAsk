@@ -320,7 +320,8 @@ export async function answerRoute(
   if ((await documents.store.usage(ownerId)).answers >= 20)
     throw new HttpError(
       429,
-      "Your 20 lifetime answers are used. Saved work remains available.",
+      "Your 20 lifetime answers are used. View upgrade options for more capacity. Saved work remains available.",
+      "FREE_ANSWER_LIMIT",
     );
   if (!services.provider || services.provider.kind !== "free")
     throw new HttpError(

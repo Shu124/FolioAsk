@@ -18,6 +18,7 @@
     "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.58.2",
     "@types/node": "^24.0.0",
     "pdf-lib": "^1.17.1",

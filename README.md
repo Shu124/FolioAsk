@@ -194,7 +194,9 @@ they do not verify your Supabase project settings or replace deployed isolation 
 
 1. Complete Supabase setup, then run `supabase/migrations/002_documents.sql` in SQL
    Editor. The SQL transaction serializes successful upload accounting across API
-   instances; do not replace it with browser-side counters.
+   instances; do not replace it with browser-side counters. Before deploying the
+   current code, apply all remaining migrations in order through
+   `006_storage_safeguards.sql` (see the storage safeguards section below).
 2. Enable R2 in your Cloudflare dashboard and create a private bucket, for example
    `folioask-originals-dev`. Review account billing requirements before activation.
    Keep public access and `r2.dev` access disabled. Do not add a public bucket domain.
@@ -209,12 +211,16 @@ they do not verify your Supabase project settings or replace deployed isolation 
    it, and inspect the rendered page and extracted text. Confirm a second account
    cannot download its original or extracted content, including by copied URL.
 6. Test concurrent uploads/retries against the deployed SQL/R2 configuration before
-   allowing a controlled pilot. Current automated tests use local SQLite storage;
-   they do not attest to your R2 settings or execute the PostgreSQL migration.
+   allowing a controlled pilot. Automated tests cover SQLite, the actual SQL
+   migrations in local PGlite/PostgreSQL, and browser journeys. They do not attest
+   to your hosted Supabase/R2 configuration or substitute for multi-instance load tests.
 
 Limits use decimal bytes: 10 MB = 10,000,000 bytes. Only successful uploads count
 toward the three-upload lifetime allowance. Keep the same Idempotency-Key on
 network retry; reusing a key for different file bytes/workspaces is rejected.
+Pending uploads reserve storage and an upload slot, but are not successful usage.
+An in-flight duplicate returns HTTP 409 without writing a second object. Retry
+after completion with the same key to recover the saved document.
 Page text retains PDF text-item positions (including heading sizes and table
 alignment); complex reading order or merged table cells are not yet interpreted.
 
@@ -228,6 +234,108 @@ fixtures only. No general sensitive-data detector or compliance claim is made.
 The no-account local pilot stores both metadata and originals in ignored SQLite.
 Vite with real Supabase credentials supports sign-in/workspaces only; use the
 Cloudflare preview deployment for the actual R2-backed upload integration.
+
+### Storage safeguards and upgrade prompts (migration 006)
+
+Free accounts have **3 lifetime uploads, 10 MB per PDF, 30 MB total original-file
+storage, and 20 lifetime successful answers**, shared across every project.
+These are not monthly allowances. Trash retains the original and does not free
+storage or reset usage. Documents and Settings show a storage meter, an 80%
+warning, and an Upgrade plan button. Chat shows an upgrade prompt near/at its
+answer limit. At a limit, new operations are blocked; saved work remains readable
+subject to the request safeguards below.
+
+**Paid checkout is not implemented.** Upgrade opens an accessible explanation
+that paid plans are coming soon; it does not take money, change entitlements, or
+promise a specific paid price/allowance. All accounts remain free. Browser fields,
+query parameters, local storage, and client-supplied plan headers cannot unlock
+capacity. A future paid integration must verify subscriptions on the server and
+must retain shared safety limits and document eligibility restrictions.
+
+Server-side reservations are created transactionally **before** writing to R2.
+Both pending and committed allocations count toward the shared storage budget.
+Reservations do not expire automatically: an uncertain storage/database response
+may have left a real object. The deployment fails closed if the new RPCs are
+missing; it never silently falls back to unmetered uploads.
+
+Default shared policy (stored in Supabase, not public environment variables):
+
+| Control                                                    | Default                          |
+| ---------------------------------------------------------- | -------------------------------- |
+| Total accounted original storage, across all accounts      | 8,000,000,000 bytes (8 GB)       |
+| External/untracked storage allowance charged to that total | 0 bytes; set from your inventory |
+| Upload attempts per account                                | 10 per UTC minute                |
+| Original-file reads per account                            | 120 per UTC minute               |
+| Upload attempts across all accounts                        | 100,000 per UTC calendar month   |
+| Original-file reads across all accounts                    | 1,000,000 per UTC calendar month |
+
+Rejected/failed admitted attempts also consume the request budget. Counters are
+durable across API instances; they are not browser timers or process-local maps.
+A quota/request lookup failure prevents the operation. Shared storage pauses and
+request throttles explicitly say that upgrading will not bypass them. These
+ceilings are conservative app safeguards, **not a guaranteed Cloudflare spending
+cap**: other buckets/products, direct operator activity, signup/API abuse,
+untracked legacy objects, and differing billing-cycle windows are outside these
+counters. Supabase data and AI usage are separate from original-file storage.
+Keep R2 private and retain provider billing alerts/monitoring.
+
+Deployment, once only:
+
+1. Pause uploads during the migration: temporarily clear `APPROVED_PUBLIC_HASHES`
+   in Cloudflare Pages and redeploy. Allow in-flight uploads to settle. Do not
+   delete your bucket or documents.
+2. In the FolioAsk Supabase SQL Editor, apply any missing migrations 001–005 in
+   order, then run the complete `supabase/migrations/006_storage_safeguards.sql`.
+   Do not re-run already applied migrations. This backfills existing document
+   allocations, including Trash; it does not alter/delete your R2 objects.
+3. Inventory actual R2 storage, including old orphan files and other buckets
+   sharing the allowance. Charge any bytes not covered by the allocation ledger
+   to `external_bytes` (or reduce `total_bytes`). Leave headroom. For example,
+   to reserve 500 MB for other usage, run in the SQL Editor:
+
+   ```sql
+   update public.folio_storage_policy
+   set external_bytes = 500000000
+   where singleton = true;
+   ```
+
+4. Deploy this code, restore the reviewed `APPROVED_PUBLIC_HASHES` value, and
+   redeploy. No new secret or payment key is required. Check Documents and
+   Settings → Usage; test the supplied synthetic PDF with a dedicated test
+   account. Its uploads consume its lifetime allowance.
+5. Verify a fourth upload is rejected, saved documents remain available, the
+   upgrade dialog says checkout is unavailable, and a different account cannot
+   read the first account's originals. Test hosted concurrent requests too.
+
+Emergency pause (does not delete stored files):
+
+```sql
+update public.folio_storage_policy
+set uploads_enabled = false
+where singleton = true;
+```
+
+Only a trusted operator may change that row; browser roles have no access. Re-enable
+uploads only after checking actual usage. Do not raise limits merely to clear an
+error without reviewing the budget.
+
+For stuck uploads, inspect pending reservations in the SQL Editor:
+
+```sql
+select id, owner_id, original_key, bytes, created_at
+from public.folio_storage_allocations
+where state = 'pending'
+order by created_at;
+```
+
+Do not delete reservations just because they are old. First stop the relevant
+writers and confirm no request remains in flight. Reconcile the allocation with
+`folio_documents` and the actual R2 key. Never delete an original referenced by a
+saved document. Only after confirming that an uncommitted object's key is absent
+(or removing a verified orphan) may a trusted operator call
+`folio_release_upload(reservation_id, owner_id)`. Committed allocations cannot be
+released by this function. Automated orphan recovery/permanent deletion is not
+included in this change.
 
 References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/),
 [Pages R2 bindings](https://developers.cloudflare.com/pages/functions/bindings/#r2-buckets),
