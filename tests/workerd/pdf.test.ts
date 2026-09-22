@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 for (const scenario of [
   "web",
   "nodejs_compat",
+  "minified",
   "open-failure",
   "cleanup-failure",
   "text-and-cleanup-failure",
@@ -18,6 +19,7 @@ for (const scenario of [
     const bundle = await build({
       entryPoints: ["tests/workerd/pdf-worker.ts"],
       bundle: true,
+      minify: scenario === "minified",
       write: false,
       format: "esm",
       platform: "browser",

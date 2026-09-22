@@ -33,6 +33,8 @@ test("PDF failures distinguish invalid files from runtime errors without leaking
     assert.deepEqual(Object.keys(diagnostic).sort(), [
       "category",
       "reference",
+      "runtime",
+      "signature",
       "stage",
     ]);
     assert.equal(diagnostic.category, category);
@@ -41,6 +43,58 @@ test("PDF failures distinguish invalid files from runtime errors without leaking
     assert.doesNotMatch(
       JSON.stringify(call.arguments) + failure.message,
       /secret|private|filename/,
+    );
+  }
+});
+
+test("PDF diagnostics emit only fixed signatures and runtime types", (t) => {
+  const logger = t.mock.method(console, "error", () => {});
+  const cases = [
+    [
+      "Cannot read properties of undefined (reading 'includes')",
+      "missing-includes-receiver",
+    ],
+    ["Promise.withResolvers is not a function", "promise-with-resolvers"],
+    ["structuredClone is not defined", "structured-clone"],
+    ["DOMMatrix is not a constructor", "dom-matrix"],
+    [
+      "Cannot read properties of undefined (reading 'secret-account')",
+      "unclassified",
+    ],
+    ["secret filename.pdf", "unclassified"],
+  ];
+  for (const [message, expected] of cases) {
+    const failure = pdfFailure(new TypeError(message), "open");
+    const diagnostic = logger.mock.calls.at(-1)!.arguments[1];
+    assert.equal(diagnostic.signature, expected);
+    assert.ok(failure.message.includes(`Diagnostic: open/${expected}`));
+    assert.deepEqual(Object.keys(diagnostic.runtime).sort(), [
+      "domMatrix",
+      "messageChannel",
+      "navigatorPlatform",
+      "navigatorUserAgent",
+      "promiseWithResolvers",
+      "readableStream",
+      "structuredClone",
+      "worker",
+    ]);
+    for (const type of Object.values(diagnostic.runtime))
+      assert.ok(
+        [
+          "undefined",
+          "function",
+          "object",
+          "string",
+          "number",
+          "boolean",
+          "symbol",
+          "bigint",
+          "unavailable",
+        ].includes(String(type)),
+      );
+    assert.doesNotMatch(
+      JSON.stringify(diagnostic) + failure.message,
+      /secret|filename/,
     );
   }
 });

@@ -246,7 +246,11 @@ does not establish that the hosted deployment uses identical settings.
 Unexpected PDF processing errors return `PDF_PROCESSING_UNAVAILABLE` (503) and a
 support reference instead of incorrectly blaming the file. Cloudflare runtime
 logs tagged `[folioask:pdf-failure]` contain only that random reference, a fixed
-processing stage, and a fixed error category. No exception message, stack,
+processing stage, category, and error signature, plus the types (not values) of
+eight predefined runtime APIs. The safe stage/signature also appears in the
+upload error so a screenshot can identify known failures without request logs.
+Unknown signatures remain `unclassified`; message fragments are never copied.
+No exception message, stack,
 filename, document text, or account data is logged by this diagnostic. Known
 invalid/encrypted PDFs still return 422. Cleanup failures are logged separately
 and cannot mask the original processing result. The local runtime dependencies
