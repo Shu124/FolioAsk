@@ -90,6 +90,11 @@ test("conversation migration preserves legacy messages and serializes archive/de
     assert.equal((await commit()).status, undefined);
     await manage({ deletedAt: 3 });
     assert.equal((await commit()).status, 410);
+    const lateInitialRetry = await db.query<{ result: { status: number } }>(
+      "select public.folio_commit_answer($1::jsonb) as result",
+      [JSON.stringify({ ...answer, id: crypto.randomUUID() })],
+    );
+    assert.equal(lateInitialRetry.rows[0].result.status, 410);
     assert.equal(
       (await db.query("select * from public.folio_answers")).rows.length,
       0,
@@ -108,6 +113,9 @@ test("conversation migration preserves legacy messages and serializes archive/de
       await db.exec(`set role ${role}`);
       await assert.rejects(
         db.query("select * from public.folio_conversations"),
+      );
+      await assert.rejects(
+        db.query("select * from public.folio_deleted_answer_requests"),
       );
       await assert.rejects(
         db.query(

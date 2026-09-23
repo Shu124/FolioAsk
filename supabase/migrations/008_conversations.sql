@@ -1,6 +1,14 @@
 -- Apply once after 007, before deploying conversation management.
 -- Compatible with the previous app: the existing answer RPC gains metadata.
 begin;
+create table public.folio_deleted_answer_requests (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  request_key text not null,
+  primary key(owner_id,request_key)
+);
+alter table public.folio_deleted_answer_requests enable row level security;
+revoke all on public.folio_deleted_answer_requests from public,anon,authenticated;
+grant all on public.folio_deleted_answer_requests to service_role;
 create table public.folio_conversations (
   id uuid primary key,
   owner_id uuid not null references auth.users(id) on delete cascade,
@@ -31,6 +39,7 @@ declare
   v_chat jsonb;v_result jsonb;v_time bigint:=(p_answer->>'createdAt')::bigint;
 begin
   perform pg_advisory_xact_lock(hashtextextended(v_owner::text,0));
+  if exists(select 1 from public.folio_deleted_answer_requests where owner_id=v_owner and request_key=p_answer->>'requestKey') then return jsonb_build_object('status',410,'error','This question belonged to a deleted conversation. Start a new chat.');end if;
   select data into v_chat from public.folio_conversations where id=v_id for update;
   if v_chat is not null then
     if v_chat->>'ownerId'<>v_owner::text or v_chat->>'workspaceId'<>v_workspace::text then return jsonb_build_object('status',404,'error','Conversation not found.');end if;
@@ -66,6 +75,7 @@ begin
     if v_deleted is null then return jsonb_build_object('status',400,'error','Invalid deletion time.');end if;
     -- Keep only a tombstone and ownership; no question/answer text remains.
     v_chat:=jsonb_set(v_chat||jsonb_build_object('deletedAt',v_deleted),'{title}','""'::jsonb);
+    insert into public.folio_deleted_answer_requests select owner_id,request_key from public.folio_answers where owner_id=p_owner and workspace_id=p_workspace and coalesce(data->>'threadId',id::text)=p_id::text on conflict do nothing;
     delete from public.folio_answers where owner_id=p_owner and workspace_id=p_workspace and coalesce(data->>'threadId',id::text)=p_id::text;
   elsif jsonb_typeof(p_change->'title')='string' and length(trim(p_change->>'title')) between 1 and 100 then
     v_chat:=jsonb_set(v_chat,'{title}',to_jsonb(trim(p_change->>'title')));

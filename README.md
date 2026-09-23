@@ -534,7 +534,7 @@ app. It does not enable Gemini, change quotas or activate paid plans.
 5. In a test account, ask a question, rename its chat, reload, archive/restore it,
    then delete it after confirming. The document remains and usage is not refunded.
 
-Deleted conversations retain only a metadata tombstone to stop an in-flight answer
+Deleted conversations retain a metadata tombstone and opaque request IDs to stop an in-flight answer
 from recreating them; saved question/answer rows are removed. Source PDFs and usage
 remain. Archived conversations are read-only until restored. These controls are
 project-scoped; account-wide history settings are tracked separately in #41.

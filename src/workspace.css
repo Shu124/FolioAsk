@@ -743,6 +743,13 @@
 .chat-library label.acknowledgement {
   display: flex;
   align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.chat-library input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
 }
 .chat-library input[type="search"],
 .chat-library select {

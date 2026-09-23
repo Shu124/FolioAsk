@@ -362,6 +362,59 @@ test("conversations persist, isolate follow-up context, and preserve retry ident
         .status,
       200,
     );
+    function deferred() {
+      let resolve!: () => void;
+      const promise = new Promise<void>((done) => {
+        resolve = done;
+      });
+      return { resolve, promise };
+    }
+    const arrivals = deferred();
+    const gates = [deferred(), deferred()];
+    let requests = 0;
+    provider.answer = async (...args) => {
+      const index = requests++;
+      if (requests === 2) arrivals.resolve();
+      await gates[index].promise;
+      return originalAnswer(...args);
+    };
+    const initialBody = ask("Two pending initial copies");
+    const initialOne = call(path, "POST", initialBody, cookie);
+    const initialTwo = call(path, "POST", initialBody, cookie);
+    await arrivals.promise;
+    gates[0].resolve();
+    const committed = await Promise.race([initialOne, initialTwo]);
+    const committedChat = await committed.json();
+    assert.equal(committed.status, 201);
+    const afterFirst = await (
+      await call("/usage", "GET", undefined, cookie)
+    ).json();
+    assert.equal(
+      (
+        await call(
+          `${chatsPath}/${committedChat.id}`,
+          "DELETE",
+          { confirm: true },
+          cookie,
+        )
+      ).status,
+      200,
+    );
+    gates[1].resolve();
+    const both = await Promise.all([initialOne, initialTwo]);
+    assert.deepEqual(
+      both.map((response) => response.status).sort(),
+      [201, 410],
+    );
+    assert.deepEqual(
+      await (await call("/usage", "GET", undefined, cookie)).json(),
+      afterFirst,
+    );
+    assert.ok(
+      !(await (await call(chatsPath, "GET", undefined, cookie)).json()).some(
+        (chat: { title: string }) => chat.title === initialBody.question,
+      ),
+    );
   } finally {
     store.close();
   }

@@ -119,6 +119,13 @@ test("separate conversations reopen from dashboard with their own saved answers"
   ).toBeDisabled();
   await page.getByText("Chat history", { exact: true }).click();
   await page.getByLabel("Show archived conversations").check();
+  expect(
+    await page
+      .getByLabel("Show archived conversations")
+      .evaluate(
+        (node) => node.closest("label")!.getBoundingClientRect().height,
+      ),
+  ).toBeGreaterThanOrEqual(44);
   await page.getByLabel("Search conversations").fill("deadlines");
   await expect(
     page.getByLabel("Conversation", { exact: true }).locator("option"),
@@ -153,4 +160,41 @@ test("separate conversations reopen from dashboard with their own saved answers"
     path: test.info().outputPath("managed-chat.png"),
     fullPage: true,
   });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  let releaseResponse!: () => void, responseReady!: () => void;
+  const released = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    responseReady = resolve;
+  });
+  await page.route("**/api/workspaces/*/answers", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    const response = await route.fetch();
+    responseReady();
+    await released;
+    await route.fulfill({ response });
+  });
+  await page.getByLabel("Your question").fill("Shop drawings after sign-out");
+  await page.getByRole("button", { name: "Ask selected document" }).click();
+  await ready;
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeVisible();
+  const late = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/answers"),
+  );
+  releaseResponse();
+  await late;
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+  expect(errors).toEqual([]);
 });

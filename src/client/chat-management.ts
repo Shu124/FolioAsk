@@ -143,6 +143,7 @@ export function mountChatManagement(
   };
   return {
     update(items: Conversation[], id: string | undefined, pending: boolean) {
+      if (disposed) return;
       chats = items;
       current = chats.find((chat) => chat.id === id);
       busy = pending;

@@ -43,13 +43,11 @@ test("public demo and signup remain usable with enlarged text", async ({
           .slice(0, 15),
       }));
       expect(overflow.fits, `${view}: ${overflow.nodes.join(", ")}`).toBe(true);
-      await page
-        .locator(".demo-grid")
-        .screenshot({
-          path: test
-            .info()
-            .outputPath(`demo-${view.toLowerCase()}-${theme}-200.png`),
-        });
+      await page.locator(".demo-grid").screenshot({
+        path: test
+          .info()
+          .outputPath(`demo-${view.toLowerCase()}-${theme}-200.png`),
+      });
     }
   }
   await page.goto("/app?auth=signup");
@@ -150,14 +148,16 @@ test("readable product UI across populated screens and themes", async ({
         .locator("button, input, select, textarea")
         .evaluateAll((nodes) =>
           nodes
-            .filter((node) => node.getBoundingClientRect().height > 0)
+            .filter((node) => node.checkVisibility())
             .map((node) => ({
               label:
                 node.getAttribute("aria-label") ||
                 node.textContent?.trim().slice(0, 35) ||
                 node.tagName,
               size: parseFloat(getComputedStyle(node).fontSize),
-              height: node.getBoundingClientRect().height,
+              height: node.matches('input[type="checkbox"]')
+                ? (node.closest("label") ?? node).getBoundingClientRect().height
+                : node.getBoundingClientRect().height,
             })),
         );
       for (const control of controls) {

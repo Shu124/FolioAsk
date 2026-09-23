@@ -91,6 +91,7 @@ export function mountAnswers(
   picker.onchange = () => openConversation(picker.value || undefined);
   newChat.onclick = () => openConversation();
   function updateControls() {
+    if (disposed) return;
     button.disabled =
       pending ||
       disposed ||

@@ -45,7 +45,8 @@ export class SqliteStore
       );
     this.storageGuard = new SqliteStorageGuard(this.db, storagePolicy);
     this.db
-      .exec(`CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,workspace_id TEXT NOT NULL,data TEXT NOT NULL);
+      .exec(`CREATE TABLE IF NOT EXISTS deleted_answer_requests(owner_id TEXT NOT NULL,request_key TEXT NOT NULL,PRIMARY KEY(owner_id,request_key));
+      CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,workspace_id TEXT NOT NULL,data TEXT NOT NULL);
       INSERT OR IGNORE INTO conversations
       WITH ordered_answers AS (SELECT *,first_value(json_extract(data,'$.question')) OVER
         (PARTITION BY coalesce(json_extract(data,'$.threadId'),id),owner_id,workspace_id ORDER BY json_extract(data,'$.createdAt'),id) AS first_question FROM answers)
@@ -314,6 +315,11 @@ export class SqliteStore
         chat.title = "";
         this.db
           .prepare(
+            "INSERT OR IGNORE INTO deleted_answer_requests SELECT owner_id,request_key FROM answers WHERE owner_id=? AND workspace_id=? AND coalesce(json_extract(data,'$.threadId'),id)=?",
+          )
+          .run(ownerId, workspaceId, id);
+        this.db
+          .prepare(
             "DELETE FROM answers WHERE owner_id=? AND workspace_id=? AND coalesce(json_extract(data,'$.threadId'),id)=?",
           )
           .run(ownerId, workspaceId, id);
@@ -366,6 +372,17 @@ export class SqliteStore
   async commitAnswer(answer: AnswerRecord): Promise<AnswerRecord> {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      if (
+        this.db
+          .prepare(
+            "SELECT 1 FROM deleted_answer_requests WHERE owner_id=? AND request_key=?",
+          )
+          .get(answer.ownerId, answer.requestKey)
+      )
+        throw new HttpError(
+          410,
+          "This question belonged to a deleted conversation. Start a new chat.",
+        );
       const thread = answer.threadId ?? answer.id;
       const existing = this.db
         .prepare("SELECT data FROM conversations WHERE id=?")
