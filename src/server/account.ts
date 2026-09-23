@@ -8,6 +8,30 @@ export async function accountRoute(
   store: Store,
 ): Promise<Response | undefined> {
   const path = new URL(request.url).pathname;
+  if (path === "/api/account/onboarding" && request.method === "PATCH") {
+    if (!auth.updateOnboarding || !auth.account)
+      throw new HttpError(503, "Profile setup is unavailable. Please retry.");
+    const data = await bodyJson(request);
+    const name = requiredText(data.name, "Display name", 100);
+    const industry = requiredText(data.industry, "Industry", 40);
+    if (
+      !["Construction", "Finance", "Healthcare", "Other"].includes(industry) ||
+      typeof data.complete !== "boolean" ||
+      (data.complete && data.acknowledge !== true) ||
+      (data.plan !== undefined && data.plan !== "free")
+    )
+      throw new HttpError(
+        400,
+        "Choose an industry and acknowledge the free pilot restrictions. Paid plans are not available.",
+      );
+    const existing = await auth.account(account.id);
+    await auth.updateOnboarding(account.id, {
+      name,
+      industry,
+      complete: existing.onboardingComplete === true || data.complete,
+    });
+    return json(await auth.account(account.id));
+  }
   if (path === "/api/account" && request.method === "GET") {
     if (!auth.account)
       throw new HttpError(503, "Account settings are unavailable.");

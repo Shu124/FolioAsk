@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
 test("sign in, create and reopen an owned workspace, then sign out", async ({
@@ -11,6 +12,7 @@ test("sign in, create and reopen an owned workspace, then sign out", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Elm Street");
   await page.getByRole("button", { name: "Create project" }).click();
   await expect(
@@ -39,6 +41,7 @@ test("a second browser account cannot open or rename the first account workspace
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Private project title");
   await page.getByRole("button", { name: "Create project" }).click();
   await expect(

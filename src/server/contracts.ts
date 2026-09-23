@@ -3,6 +3,8 @@ export interface Account {
   email: string;
   name?: string;
   providers?: string[];
+  industry?: string;
+  onboardingComplete?: boolean;
 }
 export interface Workspace {
   id: string;
@@ -22,6 +24,10 @@ export interface IdentityProvider {
   exchangeGoogle?(code: string, verifier: string): Promise<Account>;
   account?(id: string): Promise<Account>;
   updateName?(id: string, name: string): Promise<void>;
+  updateOnboarding?(
+    id: string,
+    profile: { name: string; industry: string; complete: boolean },
+  ): Promise<void>;
   changePassword?(
     account: Account,
     currentPassword: string,

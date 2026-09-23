@@ -517,6 +517,19 @@ Google quota availability; those remain operator/release checks.
 
 ## Implementation progress and remaining work
 
+### Workspace upgrade: profile onboarding and project navigation (#37)
+
+New accounts complete a display-name/industry step and acknowledge the Free pilot
+before creating their first project. Saved preferences survive reloads. Existing
+project owners continue directly to their projects. Industry is a preference, not
+permission to upload regulated or private data. Paid plans remain disabled.
+
+Profile preferences use Supabase Auth user metadata (`display_name`,
+`folio_industry`, `folio_onboarding_complete`); no database migration or new secret
+is needed for this slice. The project switcher supports search, keyboard and touch;
+Add project stays in the main content area. See the approved workspace upgrade spec
+and GitHub #36–#41 for the remaining implementation slices.
+
 - [#2](https://github.com/Shu124/FolioAsk/issues/2),
   [#3](https://github.com/Shu124/FolioAsk/issues/3), and
   [#4](https://github.com/Shu124/FolioAsk/issues/4): implemented, reviewed, fixed,

@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
@@ -12,6 +13,7 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Evidence");
   await page.getByRole("button", { name: "Create project" }).click();
   await page
@@ -73,6 +75,7 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Concurrent UI");
   await page.getByRole("button", { name: "Create project" }).click();
   await page

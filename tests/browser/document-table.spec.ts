@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
@@ -12,6 +13,7 @@ test("document table searches, trashes and restores without resetting allowance"
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page
     .getByLabel("Project name", { exact: true })
     .fill("Document library");

@@ -5,7 +5,13 @@ import { createHash } from "node:crypto";
 export function controlledIdentity(): IdentityProvider {
   const profiles = new Map<
     string,
-    { name: string; password: string; providers: string[] }
+    {
+      name: string;
+      password: string;
+      providers: string[];
+      industry: string;
+      onboardingComplete: boolean;
+    }
   >();
   const profile = (id: string) => {
     if (!profiles.has(id))
@@ -13,6 +19,8 @@ export function controlledIdentity(): IdentityProvider {
         name: "",
         password: "local-test-password",
         providers: ["email"],
+        industry: "",
+        onboardingComplete: false,
       });
     return profiles.get(id)!;
   };
@@ -23,10 +31,24 @@ export function controlledIdentity(): IdentityProvider {
   return {
     async account(id) {
       const value = profile(id);
-      return { id, email: id, name: value.name, providers: value.providers };
+      return {
+        id,
+        email: id,
+        name: value.name,
+        providers: value.providers,
+        industry: value.industry,
+        onboardingComplete: value.onboardingComplete,
+      };
     },
     async updateName(id, name) {
       profile(id).name = name;
+    },
+    async updateOnboarding(id, data) {
+      Object.assign(profile(id), {
+        name: data.name,
+        industry: data.industry,
+        onboardingComplete: data.complete,
+      });
     },
     async changePassword(account, currentPassword, password) {
       const value = profile(account.id);

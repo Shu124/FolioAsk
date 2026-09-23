@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
 test("dashboard shows honest zero metrics and active time stops when hidden or idle", async ({
@@ -12,6 +13,7 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page
     .getByLabel("Project name", { exact: true })
     .fill("Dashboard metrics");

@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
@@ -12,6 +13,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name", { exact: true }).fill("Conversations");
   await page
     .getByRole("button", { name: "Create project", exact: true })

@@ -1,9 +1,11 @@
-import type { Workspace } from "../server/contracts";
+import type { Workspace, Account } from "../server/contracts";
 import { mountDocuments, type Api } from "./documents";
 import { mountTheme } from "./theme";
 import { mountSettings } from "./settings";
 import { icon, labelWithIcon } from "./icons";
 import { mountDashboard } from "./dashboard";
+import { mountOnboarding } from "./onboarding";
+import { mountProjectSwitcher } from "./project-switcher";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
 const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
@@ -80,6 +82,15 @@ export function mountProjects(
   let disposed = false;
   let sequence = 0;
   let activeView: View = "Dashboard";
+  const profilePanel = document.createElement("section");
+  profilePanel.hidden = true;
+  onboarding.before(profilePanel);
+  let profileSetup: ReturnType<typeof mountOnboarding> | undefined;
+  const switcher = mountProjectSwitcher(
+    root.querySelector(".project-sidebar")!,
+    selector,
+    (id) => void run(() => open(id)),
+  );
   const controls = views.map((view) => {
     const button = document.createElement("button");
     button.innerHTML = `${icon(view)}<span>${view}</span>`;
@@ -144,6 +155,7 @@ export function mountProjects(
     current = project;
     title.textContent = project.name;
     selector.value = project.id;
+    switcher.update(projects, project.id);
     onboarding.hidden = true;
     main.hidden = false;
     dashboardView = mountDashboard(dashboard, project.id, api, (target) => {
@@ -192,6 +204,7 @@ export function mountProjects(
     }
   }
   function updateSelector() {
+    switcher.update(projects, current?.id ?? "");
     selector.replaceChildren();
     for (const project of projects) {
       const option = document.createElement("option");
@@ -245,12 +258,40 @@ export function mountProjects(
     projects = await api<Workspace[]>("/workspaces");
     if (disposed) return;
     updateSelector();
+    if (
+      params.get("workspace") &&
+      !projects.some((project) => project.id === params.get("workspace"))
+    ) {
+      await open(params.get("workspace")!);
+      return;
+    }
+    if (!projects.length) {
+      onboarding.hidden = true;
+      addProject.hidden = true;
+      const profile = await api<Account>("/account");
+      if (disposed) return;
+      if (!profile.onboardingComplete) {
+        profilePanel.hidden = false;
+        profileSetup = mountOnboarding(profilePanel, profile, api, () => {
+          profilePanel.hidden = true;
+          profileSetup?.dispose();
+          onboarding.hidden = false;
+          addProject.hidden = false;
+          form.querySelector("input")!.focus();
+        });
+        return;
+      }
+      onboarding.hidden = false;
+      addProject.hidden = false;
+    }
     const id = params.get("workspace") ?? projects[0]?.id;
     if (id) await open(id);
   });
   return {
     ready,
     dispose() {
+      profileSetup?.dispose();
+      switcher.dispose();
       disposed = true;
       disposeTheme();
       dashboardView?.dispose();

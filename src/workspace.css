@@ -398,6 +398,112 @@
   background: var(--surface);
   min-width: 0;
 }
+.profile-onboarding {
+  max-width: 42rem;
+  margin: 2rem auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+.profile-onboarding form {
+  display: grid;
+  gap: 1.25rem;
+}
+.profile-onboarding select,
+.profile-onboarding input:not([type="checkbox"]) {
+  width: 100%;
+}
+.onboarding-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0;
+  list-style: none;
+  margin: 1.5rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.onboarding-steps li {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.onboarding-steps [aria-current] {
+  background: var(--accent-soft);
+  color: var(--blue);
+  border-color: var(--accent-border);
+}
+.acknowledgement {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+.acknowledgement input {
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+}
+.project-switcher {
+  position: relative;
+  min-width: 0;
+}
+.project-switcher > .eyebrow {
+  display: block;
+  font-size: 0.65rem;
+  margin-bottom: 0.6rem;
+}
+.project-switcher-trigger {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  background: var(--surface);
+}
+.project-switcher-trigger > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.project-switcher-panel {
+  width: 100%;
+  margin-top: 0.5rem;
+  z-index: 30;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.project-switcher-panel input {
+  width: 100%;
+  min-width: 0;
+}
+.project-options {
+  display: grid;
+  gap: 0.3rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0.75rem 0;
+}
+.project-option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  text-align: left;
+}
+.project-option span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.project-option[aria-current] {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--blue);
+}
 .plan-usage[data-level="full"],
 .plan-usage[data-level="warning"] {
   border-color: var(--accent-border);

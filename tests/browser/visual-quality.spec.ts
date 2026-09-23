@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
@@ -107,6 +108,7 @@ test("readable product UI across populated screens and themes", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page
     .getByLabel("Project name", { exact: true })
     .fill("Elm Street renovation");

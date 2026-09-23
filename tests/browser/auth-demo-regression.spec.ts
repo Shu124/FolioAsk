@@ -91,7 +91,7 @@ test("registration validates passwords, confirms submission and recovers from fa
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Name your first project" }),
+    page.getByRole("heading", { name: "Make this workspace yours" }),
   ).toBeVisible();
 });
 

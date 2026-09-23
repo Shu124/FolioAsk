@@ -62,11 +62,23 @@ export function supabaseAdapters(config: SupabaseConfig): {
             user.user_metadata?.full_name ??
             "",
           providers: user.app_metadata?.providers ?? [],
+          industry: user.user_metadata?.folio_industry ?? "",
+          onboardingComplete:
+            user.user_metadata?.folio_onboarding_complete === true,
         };
       },
       async updateName(id, name) {
         await call(`/auth/v1/admin/users/${eq(id)}`, "PUT", {
           user_metadata: { display_name: name },
+        });
+      },
+      async updateOnboarding(id, profile) {
+        await call(`/auth/v1/admin/users/${eq(id)}`, "PUT", {
+          user_metadata: {
+            display_name: profile.name,
+            folio_industry: profile.industry,
+            folio_onboarding_complete: profile.complete,
+          },
         });
       },
       async changePassword(account, currentPassword, password) {

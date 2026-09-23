@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
 test("settings theme persists across app, landing and system appearance", async ({
@@ -11,6 +12,7 @@ test("settings theme persists across app, landing and system appearance", async 
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page
     .getByLabel("Project name", { exact: true })
     .fill("Settings project");
@@ -66,6 +68,7 @@ test("account and project settings save, show usage, and require password reauth
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page.getByLabel("Project name", { exact: true }).fill("Before rename");
   await page
     .getByRole("button", { name: "Create project", exact: true })
@@ -138,6 +141,7 @@ test("account and project settings save, show usage, and require password reauth
     .getByLabel("Password", { exact: true })
     .fill("updated-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await expect(
     page.getByRole("heading", { name: "Renamed project", exact: true }),
   ).toBeVisible();

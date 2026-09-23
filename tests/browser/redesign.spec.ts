@@ -1,3 +1,4 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
 test("project creation stays in the body and Chat has no upload panel", async ({
@@ -11,6 +12,7 @@ test("project creation stays in the body and Chat has no upload panel", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await page
     .getByLabel("Project name", { exact: true })
     .fill("Research studio");

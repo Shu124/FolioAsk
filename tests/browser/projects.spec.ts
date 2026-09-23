@@ -1,4 +1,67 @@
+import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
+
+test("profile setup resumes saved preferences and project search is keyboard accessible", async ({
+  page,
+}) => {
+  await page.goto("/app");
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(`setup-${crypto.randomUUID()}@example.test`);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("local-test-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel("Display name", { exact: true }).fill("Avery");
+  await page.getByLabel("Industry", { exact: true }).selectOption("Healthcare");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByText("Start with source-backed research", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    "Avery",
+  );
+  await expect(page.getByLabel("Industry", { exact: true })).toHaveValue(
+    "Healthcare",
+  );
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Continue to project" }).click();
+  await page.getByLabel("Project name", { exact: true }).fill("Alpha research");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Alpha research", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add project", exact: true }).click();
+  await page.getByLabel("Project name", { exact: true }).fill("Beta research");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Beta research", exact: true }),
+  ).toBeVisible();
+  await page.locator(".project-switcher-trigger").click();
+  await page.getByLabel("Find project").fill("alpha");
+  await expect(page.locator(".project-options button")).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Alpha research", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".project-switcher-trigger")).toBeFocused();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("project-switcher.png"),
+    fullPage: true,
+  });
+});
 
 test("first project onboarding leads to persistent sidebar navigation", async ({
   page,
@@ -11,6 +74,7 @@ test("first project onboarding leads to persistent sidebar navigation", async ({
     .getByLabel("Password", { exact: true })
     .fill("local-test-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await completeOnboarding(page);
   await expect(
     page.getByRole("heading", { name: "Name your first project" }),
   ).toBeVisible();
