@@ -136,6 +136,28 @@ test("readable product UI across populated screens and themes", async ({
       await page.getByRole("button", { name: "Switch to dark mode" }).click();
     for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
       await nav.getByRole("button", { name: view, exact: true }).click();
+      if (view === "Chat") {
+        await expect(
+          page.getByRole("button", { name: "New chat", exact: true }),
+        ).toBeVisible();
+        const historyHeight = await page
+          .locator("#answer-history")
+          .evaluate((node) => node.clientHeight);
+        expect(
+          historyHeight,
+          "chat should provide a readable message area",
+        ).toBeGreaterThanOrEqual(160);
+      }
+      if (view === "Documents") {
+        const table = await page.locator("#document-buttons").boundingBox();
+        const allowance = await page
+          .getByRole("region", { name: "Document allowance" })
+          .boundingBox();
+        expect(
+          table!.y,
+          "documents should appear before the expanded capacity panel",
+        ).toBeLessThan(allowance!.y);
+      }
       if (view === "Dashboard")
         await expect(
           page.getByLabel("Active documents", { exact: true }),

@@ -323,21 +323,21 @@ nav {
 }
 .account-page:has(#signin:not([hidden])) {
   max-width: 580px;
-  margin-block: 3.5rem;
+  margin-block: 2rem;
   padding: 0 1rem;
 }
 .account-page:has(#signin:not([hidden])) > .eyebrow {
   display: none;
 }
 #signin {
-  padding: clamp(1.5rem, 4vw, 2.5rem);
+  padding: clamp(1.25rem, 4vw, 2rem);
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 #signin h1 {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 1.875rem);
   line-height: 1.2;
   margin-bottom: 1rem;
 }
@@ -350,8 +350,8 @@ nav {
 }
 #signin-form {
   display: grid;
-  gap: 1.25rem;
-  margin: 1.5rem 0;
+  gap: 1rem;
+  margin: 1.25rem 0;
 }
 .google-signin {
   width: 100%;

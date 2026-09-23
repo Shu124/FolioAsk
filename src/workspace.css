@@ -1,7 +1,7 @@
 .account-page:has(.project-shell) {
   max-width: 1600px;
-  margin: 1.5rem auto;
-  padding: 0 2rem;
+  margin: 1rem auto;
+  padding: 0 1.5rem;
 }
 .account-page:has(.project-shell) > .eyebrow {
   display: none;
@@ -9,23 +9,25 @@
 .project-shell {
   display: grid;
   grid-template-columns: minmax(240px, 15rem) minmax(0, 1fr);
-  gap: 2rem;
+  gap: 1.5rem;
 }
 .project-sidebar {
+  display: flex;
+  flex-direction: column;
   container: sidebar / inline-size;
   align-self: start;
   position: sticky;
-  top: 1.5rem;
+  top: 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  min-height: 70vh;
+  min-height: min(36rem, calc(100dvh - 7rem));
   border-radius: 16px;
-  padding: 1.25rem 0.875rem;
-  max-height: calc(100dvh - 3rem);
+  padding: 1rem 0.75rem;
+  max-height: calc(100dvh - 2rem);
   overflow-y: auto;
 }
 .project-sidebar > .eyebrow {
-  padding: 0 0.5rem;
+  display: none;
 }
 .project-sidebar > label {
   padding: 0 0.35rem;
@@ -45,20 +47,22 @@
 .sidebar-utilities {
   display: grid;
   gap: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }
 .project-sidebar nav {
   display: grid;
-  margin: 1.5rem 0;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
-  gap: 0.4rem;
+  margin: 1rem 0;
+  padding-bottom: 0.5rem;
+  gap: 0.25rem;
 }
 .project-sidebar nav button {
   justify-content: flex-start;
   gap: 0.75rem;
   border: 1px solid transparent;
   background: transparent;
-  padding: 0.8rem 0.9rem;
+  padding: 0.65rem 0.75rem;
   text-align: left;
 }
 .project-sidebar nav button:hover {
@@ -82,7 +86,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.25rem;
 }
 .workspace-toolbar .eyebrow {
   margin: 0;
@@ -90,7 +94,7 @@
 .project-topbar {
   min-height: 52px;
   padding-bottom: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
 }
 .project-breadcrumb {
@@ -115,8 +119,8 @@
 .page-heading h2,
 .page-heading h3,
 .answer-panel > h3 {
-  font-size: 1.875rem;
-  margin: 0 0 0.65rem;
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
 }
 .page-heading .eyebrow {
   color: var(--blue);
@@ -151,7 +155,7 @@
 }
 .settings-navigation {
   flex-wrap: wrap;
-  margin: 1.5rem 0;
+  margin: 1rem 0;
   gap: 0.35rem;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.75rem;
@@ -170,7 +174,7 @@
   max-width: 860px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 2rem;
+  padding: 1.5rem;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -243,7 +247,7 @@
 .activity-chart-card {
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -252,8 +256,8 @@
   justify-content: space-between;
   gap: 0.6rem;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  min-height: 3rem;
+  margin-bottom: 0.75rem;
+  min-height: 2.5rem;
 }
 .metric-card p {
   color: var(--muted);
@@ -326,9 +330,9 @@
   overflow-x: auto;
   display: flex;
   align-items: end;
-  gap: 0.75rem;
-  min-height: 210px;
-  padding-top: 1.5rem;
+  gap: 0.25rem;
+  min-height: 180px;
+  padding-top: 0.75rem;
   margin: 0.75rem 0 1rem;
   border-bottom: 1px solid var(--border);
   background: repeating-linear-gradient(
@@ -341,7 +345,7 @@
 }
 .activity-column {
   flex: 1;
-  min-width: 3rem;
+  min-width: 2.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -469,14 +473,50 @@
   flex: 1;
 }
 .project-switcher-panel {
-  width: 100%;
-  margin-top: 0.5rem;
-  z-index: 30;
-  padding: 1rem;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0.875rem;
+  color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 16px 48px #00000030,
+    0 2px 8px #00000012;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.project-switcher-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.project-picker-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.project-switcher-trigger > svg:last-child {
+  width: 16px;
+}
+.project-options {
+  min-height: 44px;
+  padding: 4px;
+}
+.project-option {
+  justify-content: flex-start;
+  border-color: transparent;
+  min-width: 0;
+}
+.project-option span {
+  flex: 1;
+}
+.project-option > svg:last-child {
+  flex-shrink: 0;
+}
+.project-options .project-option {
+  min-height: 44px;
 }
 .project-switcher-panel input {
   width: 100%;
@@ -691,6 +731,43 @@
   max-width: 900px;
   margin-inline: auto;
 }
+.document-intro-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.document-intro-tools #upload-usage {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.document-intro-tools a {
+  font-size: 0.875rem;
+}
+.document-capacity {
+  margin-top: 1.5rem;
+}
+.chat-context {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0.75rem;
+}
+.chat-context p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.chat-context #answer-usage {
+  font-variant-numeric: tabular-nums;
+}
+.new-chat-button {
+  flex-shrink: 0;
+}
 .chat-management {
   min-width: 0;
 }
@@ -701,6 +778,7 @@
   justify-content: space-between;
 }
 .chat-title-row h3 {
+  flex: 1;
   margin: 0;
   font-size: clamp(1.2rem, 2vw, 1.65rem);
   letter-spacing: -0.025em;
@@ -724,8 +802,8 @@
   border-radius: 12px;
 }
 .chat-library {
-  margin-top: 0.75rem;
-  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -733,7 +811,10 @@
 .chat-library summary {
   cursor: pointer;
   font-weight: 600;
-  min-height: 24px;
+  min-height: 44px;
+  line-height: 1.5;
+  padding-block: 0.7rem;
+  font-size: 0.875rem;
 }
 .chat-library label {
   display: grid;
@@ -875,20 +956,69 @@
 }
 #question-form {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 16px;
-  padding: 1.25rem;
+  padding: 1rem;
   box-shadow: var(--shadow);
 }
 #question-form textarea {
   resize: vertical;
-  min-height: 88px;
+  min-height: 72px;
   background: var(--page);
 }
 #question-form button {
   justify-self: end;
+  align-self: end;
+}
+.composer-question {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.composer-source {
+  grid-column: 1;
+  grid-row: 2;
+}
+.composer-source select {
+  text-overflow: ellipsis;
+}
+#question-form > button {
+  grid-column: 2;
+  grid-row: 2;
+}
+@media (min-width: 961px) and (min-height: 700px) {
+  .project-content[data-view="chat"] #answer-history {
+    min-height: 20rem;
+    max-height: 55dvh;
+    margin-bottom: 0.5rem;
+    padding-block: 0.75rem;
+  }
+}
+@media (max-width: 600px) {
+  .chat-title-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .chat-title-row h3 {
+    flex-basis: calc(100% - 60px);
+    order: 0;
+  }
+  .chat-more {
+    order: 1;
+  }
+  .new-chat-button {
+    order: 2;
+  }
+  #question-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .composer-source,
+  #question-form > button {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }
 .answer-panel > .quiet:last-child {
   margin-top: 1rem;
@@ -1023,21 +1153,9 @@
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .project-sidebar[data-collapsed="true"] {
-    display: block;
-  }
-  .project-sidebar[data-collapsed="true"] > :not(.mobile-navigation-toggle) {
+  .project-sidebar[data-collapsed="true"]
+    > :not(.mobile-navigation-toggle):not(.project-switcher) {
     display: none !important;
-  }
-  .project-sidebar[data-collapsed="true"] .mobile-navigation-toggle {
-    margin-bottom: 0 !important;
-    width: auto !important;
-  }
-  .project-sidebar[data-collapsed="true"] .mobile-navigation-toggle > span {
-    position: static;
-    width: auto;
-    height: auto;
-    clip-path: none;
   }
   .project-topbar {
     margin-bottom: 1.5rem;

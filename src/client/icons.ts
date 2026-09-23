@@ -1,4 +1,5 @@
 const paths = {
+  ChevronDown: '<path d="m6 9 6 6 6-6"/>',
   Plus: '<path d="M12 5v14M5 12h14"/>',
   Folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9H3Z"/>',
   Upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',

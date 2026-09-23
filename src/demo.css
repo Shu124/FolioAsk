@@ -40,11 +40,9 @@
   font-size: 0.875rem;
   letter-spacing: 0.08em;
 }
-.demo-thread-title {
-  padding: 12px;
-  background: var(--subtle);
-  font-size: 0.875rem;
-  border-radius: 8px;
+.demo-body .answer-panel > h3 {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
 }
 .demo-message-history {
   min-height: 220px;

@@ -100,6 +100,8 @@ export function mountProjects(
     return button;
   });
   function show(view: View) {
+    root.querySelector<HTMLElement>(".project-content")!.dataset.view =
+      view.toLowerCase();
     if (activeView !== view) window.scrollTo({ top: 0, behavior: "instant" });
     activeView = view;
     dashboard.hidden = view !== "Dashboard";

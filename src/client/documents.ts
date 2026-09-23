@@ -25,7 +25,13 @@ export function mountDocuments(
   const status = root.querySelector<HTMLElement>("#upload-status")!;
   const usagePanel = document.createElement("section");
   usagePanel.setAttribute("aria-label", "Document allowance");
-  root.querySelector("#upload-usage")!.after(usagePanel);
+  root.querySelector("#document-buttons")!.after(usagePanel);
+  usagePanel.className = "document-capacity";
+  const tools = document.createElement("div");
+  tools.className = "document-intro-tools";
+  const sampleLink = root.querySelector<HTMLAnchorElement>("a[download]")!;
+  sampleLink.before(tools);
+  tools.append(root.querySelector("#upload-usage")!, sampleLink);
   const planUsage = mountPlanUsage(usagePanel, "storage");
   let allowance: PlanUsage | undefined;
   let uploading = false;
@@ -53,11 +59,7 @@ export function mountDocuments(
   policy.className = "pilot-notice";
   policy.textContent =
     "Controlled pilot · Approved synthetic PDFs only. No patient records, confidential or regulated sensitive files.";
-  labelWithIcon(
-    root.querySelector<HTMLElement>(".upload-section > a")!,
-    "Download",
-    "Download synthetic test PDF",
-  );
+  labelWithIcon(sampleLink, "Download", "Download synthetic test PDF");
   add.onclick = () => {
     form.hidden = !form.hidden;
     add.setAttribute("aria-expanded", String(!form.hidden));

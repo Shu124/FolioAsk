@@ -53,6 +53,13 @@ export function mountDemo(root: HTMLElement) {
     "Start your own conversation ↗",
   );
   const assistant = document.createElement("div");
+  const chatHeading = root.querySelector<HTMLElement>(
+    '[data-demo-panel="Chat"] > h3',
+  )!;
+  const thread = root.querySelector<HTMLElement>("#demo-thread")!;
+  const oldThreadLabel = thread.parentElement!;
+  chatHeading.replaceChildren(thread);
+  oldThreadLabel.remove();
   assistant.className = "assistant-label";
   assistant.innerHTML = `${icon("Chat")}<strong>FolioAsk</strong>`;
   root.querySelector("#sample-question")!.after(assistant);

@@ -22,6 +22,9 @@ export function mountAnswers(
   const button = form.querySelector<HTMLButtonElement>("button")!;
   const status = root.querySelector<HTMLElement>("#question-status")!;
   const history = root.querySelector<HTMLElement>("#answer-history")!;
+  selection.parentElement!.classList.add("composer-source");
+  question.parentElement!.classList.add("composer-question");
+  question.rows = 2;
   const usagePanel = document.createElement("section");
   usagePanel.setAttribute("aria-label", "Answer allowance");
   root.querySelector("#answer-usage")!.after(usagePanel);
@@ -58,9 +61,6 @@ export function mountAnswers(
   const newChat = document.createElement("button");
   newChat.type = "button";
   labelWithIcon(newChat, "Plus", "New chat");
-  const conversationToolbar = document.createElement("div");
-  conversationToolbar.className = "conversation-toolbar";
-  conversationToolbar.append(newChat);
   const managementRoot = document.createElement("section");
   heading.replaceWith(managementRoot);
   const management = mountChatManagement(
@@ -70,7 +70,14 @@ export function mountAnswers(
     api,
     refresh,
   );
-  history.before(conversationToolbar);
+  managementRoot.querySelector(".chat-more")!.before(newChat);
+  newChat.className = "new-chat-button";
+  const context = document.createElement("div");
+  context.className = "chat-context";
+  const description = root.querySelector<HTMLElement>(".page-description")!;
+  const usage = root.querySelector<HTMLElement>("#answer-usage")!;
+  description.before(context);
+  context.append(description, usage);
   function rememberThread() {
     const url = new URL(location.href);
     if (threadId) url.searchParams.set("thread", threadId);
