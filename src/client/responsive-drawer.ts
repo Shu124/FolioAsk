@@ -26,12 +26,23 @@ export function responsiveDrawer(
     trigger.setAttribute("aria-expanded", "false");
   }
   function resize() {
-    const focusedInside = content.contains(document.activeElement);
+    const focused = document.activeElement;
+    const focusedInside = content.contains(focused);
+    const focusedDrawer = dialog.contains(focused);
     close();
     if (media.matches) dialog.append(content);
     else slot.after(content);
     trigger.hidden = !media.matches;
     if (focusedInside && media.matches) trigger.focus({ preventScroll: true });
+    if (!media.matches && (focusedInside || focusedDrawer)) {
+      const target =
+        focusedInside && focused instanceof HTMLElement
+          ? focused
+          : content.querySelector<HTMLElement>(
+              "button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], summary",
+            );
+      target?.focus({ preventScroll: true });
+    }
   }
   trigger.onclick = () => {
     if (!media.matches) return;
@@ -40,6 +51,23 @@ export function responsiveDrawer(
     closeButton.focus({ preventScroll: true });
   };
   closeButton.onclick = close;
+  dialog.onkeydown = (event) => {
+    if (event.key !== "Tab") return;
+    const controls = [
+      ...dialog.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"]',
+      ),
+    ].filter((node) => node.checkVisibility());
+    const first = controls[0],
+      last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  };
   dialog.addEventListener("close", () => {
     trigger.setAttribute("aria-expanded", "false");
     if (media.matches && trigger.isConnected && trigger.checkVisibility())

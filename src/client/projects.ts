@@ -93,6 +93,8 @@ export function mountProjects(
   let disposed = false;
   let sequence = 0;
   let activeView: View = "Dashboard";
+  let historyDirty = false;
+  let historyVersion = 0;
   const profilePanel = document.createElement("section");
   profilePanel.hidden = true;
   onboarding.before(profilePanel);
@@ -119,6 +121,34 @@ export function mountProjects(
     settings.hidden = view !== "Settings";
     if (view === "Dashboard") void dashboardView?.refresh();
     if (view === "Settings") void settingsView?.refreshUsage();
+    if (view === "Chat" && historyDirty && documentView) {
+      const documentModel = documentView;
+      const revision = historyVersion;
+      status.textContent = "Refreshing conversation history…";
+      void documentModel
+        .refreshConversations()
+        .then((loaded) => {
+          if (
+            disposed ||
+            documentModel !== documentView ||
+            revision !== historyVersion
+          )
+            return;
+          if (loaded) {
+            historyDirty = false;
+            status.textContent = "";
+          }
+        })
+        .catch(() => {
+          if (
+            !disposed &&
+            documentModel === documentView &&
+            revision === historyVersion
+          )
+            status.textContent =
+              "Could not refresh conversation history. Open Chat again to retry; your draft is preserved.";
+        });
+    }
     // Uploads and chat share project state, but render in separate sections.
     documentView?.show(view === "Documents" ? "documents" : "chat");
     for (const button of controls) {
@@ -149,6 +179,8 @@ export function mountProjects(
   }
   async function open(id: string) {
     const revision = ++sequence;
+    historyVersion++;
+    historyDirty = false;
     documentView?.dispose();
     dashboardView?.dispose();
     settingsView?.dispose();
@@ -197,8 +229,12 @@ export function mountProjects(
       },
       appearance,
       () => {
-        if (!disposed && revision === sequence)
-          void documentView?.refreshConversations().catch(() => {});
+        if (!disposed && revision === sequence) {
+          historyDirty = true;
+          historyVersion++;
+          documentView?.invalidateConversations();
+          if (activeView === "Chat") show("Chat");
+        }
       },
     );
     // Commit the project URL before the chat reads its conversation selection.

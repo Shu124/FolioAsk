@@ -1112,7 +1112,7 @@
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .project-sidebar nav {
+  .demo-sidebar nav {
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0.25rem 0 0;
@@ -1136,7 +1136,7 @@
     padding: 0.5rem;
     text-align: left;
   }
-  .mobile-navigation-toggle {
+  .demo-sidebar .mobile-navigation-toggle {
     display: inline-flex !important;
     grid-column: 2;
     grid-row: 1;

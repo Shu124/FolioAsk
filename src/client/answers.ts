@@ -23,6 +23,14 @@ export function mountAnswers(
   const button = form.querySelector<HTMLButtonElement>("button")!;
   const status = root.querySelector<HTMLElement>("#question-status")!;
   const history = root.querySelector<HTMLElement>("#answer-history")!;
+  for (const input of [question, selection]) {
+    const label = input.parentElement!;
+    const caption = document.createElement("span");
+    caption.className = "composer-label";
+    caption.textContent = label.firstChild!.textContent;
+    label.firstChild!.replaceWith(caption);
+  }
+  selection.title = "Selected document";
   selection.parentElement!.classList.add("composer-source");
   question.parentElement!.classList.add("composer-question");
   form.prepend(question.parentElement!);
@@ -51,6 +59,8 @@ export function mountAnswers(
   let requestKey = crypto.randomUUID();
   let disposed = false;
   let pending = false;
+  let historyInvalidated = false;
+  let refreshRevision = 0;
   let answers: AnswerRecord[] = [];
   let chats: Conversation[] = [];
   let trashedIds = new Set<string>();
@@ -72,7 +82,9 @@ export function mountAnswers(
     picker,
     workspaceId,
     api,
-    refresh,
+    async () => {
+      await refresh();
+    },
   );
   managementRoot.querySelector(".chat-more")!.before(newChat);
   newChat.className = "new-chat-button";
@@ -109,6 +121,7 @@ export function mountAnswers(
     if (disposed) return;
     button.disabled =
       pending ||
+      historyInvalidated ||
       disposed ||
       selection.options.length === 0 ||
       !allowance ||
@@ -117,8 +130,8 @@ export function mountAnswers(
     question.disabled = pending || disposed;
     selection.disabled = pending || disposed;
     picker.disabled = pending || disposed;
-    newChat.disabled = pending || disposed;
-    management.update(chats, threadId, pending);
+    newChat.disabled = pending || disposed || historyInvalidated;
+    management.update(chats, threadId, pending || historyInvalidated);
   }
   question.oninput = () => {
     requestKey = crypto.randomUUID();
@@ -127,6 +140,7 @@ export function mountAnswers(
     requestKey = crypto.randomUUID();
   };
   async function refresh() {
+    const revision = ++refreshRevision;
     const saved = await api<AnswerRecord[]>(
       `/workspaces/${workspaceId}/answers`,
     );
@@ -134,7 +148,8 @@ export function mountAnswers(
     const metadata = await api<Conversation[]>(
       `/workspaces/${workspaceId}/conversations`,
     );
-    if (disposed) return;
+    if (disposed || revision !== refreshRevision) return false;
+    historyInvalidated = false;
     allowance = usage;
     planUsage.update(usage);
     updateControls();
@@ -149,10 +164,20 @@ export function mountAnswers(
       `${usage.answersRemaining} of 20 lifetime answers remaining`;
     renderHistory();
     onHistory(chats.filter((chat) => !chat.archived));
+    return true;
   }
   function renderHistory() {
-    management.update(chats, threadId, pending);
+    management.update(chats, threadId, pending || historyInvalidated);
     history.replaceChildren();
+    if (historyInvalidated) {
+      const notice = document.createElement("p");
+      notice.className = "quiet";
+      notice.textContent =
+        "Reloading conversation history. Previous results are hidden until the latest history is available.";
+      history.append(notice);
+      updateControls();
+      return;
+    }
     if (!threadId) {
       const empty = document.createElement("div");
       empty.className = "chat-empty";
@@ -246,6 +271,13 @@ export function mountAnswers(
   };
   return {
     refresh,
+    invalidateHistory() {
+      historyInvalidated = true;
+      refreshRevision++;
+      answers = [];
+      chats = [];
+      renderHistory();
+    },
     refreshLayout: layout.refresh,
     openConversation,
     dispose() {

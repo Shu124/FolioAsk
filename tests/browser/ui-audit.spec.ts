@@ -47,6 +47,28 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
     { width: 1280, height: 600 },
   ]) {
     await page.setViewportSize(viewport);
+    if (viewport.width > 760) {
+      await expect(
+        page.getByRole("button", { name: "Toggle navigation", exact: true }),
+      ).toBeHidden();
+      const bounds = await page.locator(".project-sidebar").boundingBox();
+      for (const button of await page
+        .getByRole("navigation", { name: "Project navigation" })
+        .getByRole("button")
+        .all()) {
+        const box = await button.boundingBox();
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(
+          await button.evaluate(
+            (node) => node.scrollWidth <= node.clientWidth + 1,
+          ),
+        ).toBe(true);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(
+          bounds!.x + bounds!.width,
+        );
+      }
+    }
     await trigger.click();
     await expect(search).toBeFocused();
     const box = await panel.boundingBox();
@@ -54,7 +76,7 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
     if (viewport.height - anchor!.y - anchor!.height > box!.height + 24) {
       expect(
         Math.abs(box!.y - anchor!.y - anchor!.height - 8),
-        "picker should stay attached to its project trigger",
+        `picker should stay attached to its project trigger: ${JSON.stringify({ viewport, box, anchor })}`,
       ).toBeLessThan(2);
     }
     expect(box!.x).toBeGreaterThanOrEqual(0);

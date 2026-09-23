@@ -16,6 +16,7 @@ export function mountSettingsHistory(
   const label = document.createElement("label");
   label.textContent = "Conversation";
   const picker = document.createElement("select");
+  picker.setAttribute("aria-label", "Conversation");
   label.append(picker);
   managerRoot.append(label);
   const clear = root.querySelector<HTMLButtonElement>(
@@ -32,6 +33,7 @@ export function mountSettingsHistory(
   let selected: string | undefined;
   let disposed = false,
     busy = false,
+    stopRequested = false,
     actionPending = false,
     revision = 0;
   const manager = mountChatManagement(
@@ -70,11 +72,15 @@ export function mountSettingsHistory(
       if (!items.some((item) => item.id === selected)) selected = undefined;
       render();
     } catch (error) {
-      if (!disposed && current === revision)
+      if (!disposed && current === revision) {
+        items = [];
+        selected = undefined;
+        render();
         status.textContent =
           error instanceof Error
             ? error.message
             : "Could not load chat history. Please retry.";
+      }
     }
   }
   clear.onclick = () => {
@@ -82,7 +88,17 @@ export function mountSettingsHistory(
     dialog.showModal();
     cancel.focus();
   };
-  cancel.onclick = () => dialog.close();
+  function stopClearing() {
+    if (!busy) return;
+    stopRequested = true;
+    status.textContent =
+      "Stopping after the current deletion. It may still complete; no further deletions will be started. You can continue using the workspace.";
+  }
+  cancel.onclick = () => {
+    stopClearing();
+    dialog.close();
+  };
+  dialog.oncancel = stopClearing;
   dialog.onclose = () => {
     if (!disposed && !clear.disabled) clear.focus();
   };
@@ -90,16 +106,17 @@ export function mountSettingsHistory(
     if (busy || disposed) return;
     const targets = items.map((item) => item.id);
     busy = true;
+    stopRequested = false;
     render();
     confirm.disabled = true;
-    cancel.disabled = true;
-    dialog.oncancel = (event) => event.preventDefault();
+    cancel.textContent = "Stop clearing";
     status.textContent = "Clearing this project's history…";
     void (async () => {
       let removed = 0;
       try {
         for (const id of targets) {
           if (disposed) return;
+          if (stopRequested) break;
           await api(
             `/workspaces/${workspaceId}/conversations/${id}`,
             "DELETE",
@@ -108,24 +125,25 @@ export function mountSettingsHistory(
           removed++;
         }
         if (!disposed)
-          status.textContent =
-            "Project chat history cleared. Documents and lifetime limits are unchanged.";
+          status.textContent = stopRequested
+            ? `Clearing stopped. Deleted ${removed} of ${targets.length} conversations. Remaining history is unchanged.`
+            : "Project chat history cleared. Documents and lifetime limits are unchanged.";
       } catch {
         if (!disposed)
           status.textContent = `Deleted ${removed} of ${targets.length} conversations. Some history could not be deleted; review the remaining conversations and retry.`;
       } finally {
         if (!disposed) {
           changed();
-          busy = false;
-          confirm.disabled = false;
-          cancel.disabled = false;
-          dialog.oncancel = null;
           await refresh();
           if (!disposed) {
+            const wasOpen = dialog.open;
+            busy = false;
+            confirm.disabled = false;
+            cancel.textContent = "Cancel";
             dialog.close();
             render();
             status.tabIndex = -1;
-            status.focus();
+            if (wasOpen && status.checkVisibility()) status.focus();
           }
         }
       }

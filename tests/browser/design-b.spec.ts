@@ -190,7 +190,29 @@ test("history settings manage only the selected project and report partial clear
   expect(
     (await (await page.request.get("/api/usage")).json()).answersRemaining,
   ).toBe(17);
+  let failHistory = true;
+  await page.route(`**/api/workspaces/${id}/answers`, (route) => {
+    if (failHistory && route.request().method() === "GET") {
+      failHistory = false;
+      return route.fulfill({
+        status: 503,
+        json: { error: "Fixture history unavailable" },
+      });
+    }
+    return route.continue();
+  });
   await openProjectView(page, "Chat");
+  await expect(
+    page.getByRole("status", { name: "Project status" }),
+  ).toContainText("Could not refresh conversation history");
+  await expect(page.locator(".saved-answer")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Ask selected document" }),
+  ).toBeDisabled();
+  await openProjectView(page, "Chat");
+  await expect(
+    page.getByRole("status", { name: "Project status", includeHidden: true }),
+  ).toBeEmpty();
   await openChatHistory(page);
   await expect(
     page.locator(".conversation-sidebar .conversation-list button"),
@@ -270,6 +292,16 @@ test("folding, rotating and drawer focus preserve a draft and keep the composer 
   await expect(
     page.getByRole("navigation", { name: "Project navigation" }),
   ).toBeVisible();
+  expect(
+    await page
+      .locator(".project-sidebar")
+      .evaluate(
+        (node) =>
+          node.contains(document.activeElement) &&
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.checkVisibility(),
+      ),
+  ).toBe(true);
   await expect(question).toHaveValue("Keep this draft while folding the phone");
   await page.setViewportSize({ width: 344, height: 882 });
   await openChatHistory(page);
@@ -278,5 +310,84 @@ test("folding, rotating and drawer focus preserve a draft and keep the composer 
     page.getByRole("dialog", { name: "Chat history", exact: true }),
   ).toBeHidden();
   await expect(page.locator(".conversation-sidebar")).toBeVisible();
+  expect(
+    await page
+      .locator(".conversation-sidebar")
+      .evaluate(
+        (node) =>
+          node.contains(document.activeElement) &&
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.checkVisibility(),
+      ),
+  ).toBe(true);
   await expect(question).toHaveValue("Keep this draft while folding the phone");
+});
+
+test("a stalled clear request can be dismissed without scheduling more deletions", async ({
+  page,
+}) => {
+  const id = await workspace(page);
+  await seedHistory(page, id, [
+    "When are shop drawings due?",
+    "What is the budget?",
+  ]);
+  await openProjectView(page, "Settings");
+  await page
+    .getByRole("navigation", { name: "Settings sections" })
+    .getByRole("button", { name: "Chat history", exact: true })
+    .click();
+  const history = page.locator(".settings-history");
+  let release!: () => void,
+    started!: () => void,
+    deletes = 0;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  await page.route(`**/api/workspaces/${id}/conversations/*`, async (route) => {
+    if (route.request().method() !== "DELETE") return route.continue();
+    deletes++;
+    const response = await route.fetch();
+    started();
+    await pending;
+    await route.fulfill({ response });
+  });
+  await history
+    .getByRole("button", { name: "Clear project history", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Clear project history",
+    exact: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Delete all conversations", exact: true })
+    .click();
+  try {
+    await ready;
+    await expect(
+      dialog.getByRole("button", { name: "Stop clearing", exact: true }),
+    ).toBeEnabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(
+      history.getByRole("status", { name: "History settings status" }),
+    ).toContainText("Stopping after the current deletion");
+    await history.getByLabel("Search conversations").fill("Keep typing");
+  } finally {
+    release();
+  }
+  await expect(
+    history.getByRole("status", { name: "History settings status" }),
+  ).toContainText("Clearing stopped. Deleted 1 of 2");
+  await expect(history.getByLabel("Search conversations")).toBeFocused();
+  expect(deletes).toBe(1);
+  expect(
+    (
+      await (
+        await page.request.get(`/api/workspaces/${id}/conversations`)
+      ).json()
+    ).length,
+  ).toBe(1);
 });

@@ -25,7 +25,10 @@ export async function openChatHistory(page: Page) {
     name: "Chat history",
     exact: true,
   });
-  if (await toggle.isVisible()) await toggle.click();
+  if (await page.evaluate(() => matchMedia("(max-width: 1100px)").matches)) {
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+  } else await expect(toggle).toBeHidden();
   const library = page.locator(".conversation-sidebar .chat-library");
   if (!(await library.evaluate((node) => (node as HTMLDetailsElement).open)))
     await library.locator("summary").click();

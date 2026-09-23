@@ -109,6 +109,10 @@ export function mountProjectSwitcher(
   window.addEventListener("scroll", onScroll, true);
   window.visualViewport?.addEventListener("resize", position);
   window.visualViewport?.addEventListener("scroll", position);
+  // Font/layout changes can move the anchor after a viewport resize event.
+  const observer = new ResizeObserver(position);
+  observer.observe(trigger);
+  if (root.parentElement) observer.observe(root.parentElement);
   return {
     update(items: Workspace[], id: string) {
       projects = items;
@@ -120,6 +124,7 @@ export function mountProjectSwitcher(
       render();
     },
     dispose() {
+      observer.disconnect();
       close();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", onScroll, true);

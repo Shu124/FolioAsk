@@ -129,7 +129,8 @@ themes, compact navigation, table actions, and resizing with a chat draft.
 The short-laptop check covers 200% text sizing, including internal navigation
 overflow; the regular desktop/mobile suite also checks enlarged text.
 
-Navigation becomes a compact top panel through 960px. Below 640px of available
+App navigation uses a drawer through 760px; the simulated demo keeps its compact
+top navigation on small screens. Below 640px of available
 content width, document and recent-activity tables become labelled rows with
 visible actions. These are browser viewport checks, not physical iOS/Android
 device or mobile-keyboard certification; include those in deployment QA.

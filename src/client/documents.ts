@@ -361,6 +361,7 @@ export function mountDocuments(
     openDocument,
     openConversation: answers.openConversation,
     refreshConversations: answers.refresh,
+    invalidateConversations: answers.invalidateHistory,
     show(view: "documents" | "chat") {
       answerRoot.hidden = view === "documents";
       uploadSection.hidden = view === "chat";

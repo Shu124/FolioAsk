@@ -18,7 +18,12 @@ export default defineConfig({
     {
       name: "mobile",
       testIgnore: "**/responsive.spec.ts",
-      use: { viewport: { width: 390, height: 844 } },
+      use: {
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+        deviceScaleFactor: 3,
+      },
     },
     { name: "responsive", testMatch: "**/responsive.spec.ts" },
   ],
