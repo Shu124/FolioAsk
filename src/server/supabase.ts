@@ -7,6 +7,7 @@ import type {
 } from "./contracts.ts";
 import type { DocumentStore, DocumentRecord } from "./documents.ts";
 import { HttpError } from "./http.ts";
+import type { Conversation } from "./conversations.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 import type { ActivityStore, ActiveTime } from "./activity.ts";
 import { sharedAiQuota, type AiQuota } from "./ai-capacity.ts";
@@ -139,6 +140,26 @@ export function supabaseAdapters(config: SupabaseConfig): {
       },
     },
     store: {
+      async listConversations(ownerId, workspaceId) {
+        const rows = await call(
+          `/rest/v1/folio_conversations?owner_id=eq.${eq(ownerId)}&workspace_id=eq.${eq(workspaceId)}&deleted_at=is.null&select=data&order=updated_at.desc`,
+        );
+        return rows.map((row: { data: Conversation }) => row.data);
+      },
+      async changeConversation(ownerId, workspaceId, id, change) {
+        const result = await call(
+          "/rest/v1/rpc/folio_manage_conversation",
+          "POST",
+          {
+            p_owner: ownerId,
+            p_workspace: workspaceId,
+            p_id: id,
+            p_change: change,
+          },
+        );
+        if (result.error) throw new HttpError(result.status, result.error);
+        return result.conversation as Conversation;
+      },
       async storageSnapshot(ownerId) {
         return await call("/rest/v1/rpc/folio_storage_snapshot", "POST", {
           p_owner: ownerId,

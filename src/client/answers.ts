@@ -1,10 +1,12 @@
 import type { AnswerRecord, Citation } from "../server/answers";
 import type { DocumentRecord } from "../server/documents";
 import type { Api } from "./documents";
-import { conversations, type ConversationSummary } from "./conversations";
+import type { ConversationSummary } from "./conversations";
 import { icon, labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
 import type { PlanUsage } from "../server/storage-limits";
+import type { Conversation } from "../server/conversations";
+import { mountChatManagement } from "./chat-management";
 
 export function mountAnswers(
   root: HTMLElement,
@@ -44,6 +46,7 @@ export function mountAnswers(
   let disposed = false;
   let pending = false;
   let answers: AnswerRecord[] = [];
+  let chats: Conversation[] = [];
   let trashedIds = new Set<string>();
   let threadId: string | undefined =
     new URL(location.href).searchParams.get("thread") ?? undefined;
@@ -57,7 +60,16 @@ export function mountAnswers(
   labelWithIcon(newChat, "Plus", "New chat");
   const conversationToolbar = document.createElement("div");
   conversationToolbar.className = "conversation-toolbar";
-  conversationToolbar.append(pickerLabel, newChat);
+  conversationToolbar.append(newChat);
+  const managementRoot = document.createElement("section");
+  heading.replaceWith(managementRoot);
+  const management = mountChatManagement(
+    managementRoot,
+    picker,
+    workspaceId,
+    api,
+    refresh,
+  );
   history.before(conversationToolbar);
   function rememberThread() {
     const url = new URL(location.href);
@@ -84,11 +96,13 @@ export function mountAnswers(
       disposed ||
       selection.options.length === 0 ||
       !allowance ||
+      chats.some((chat) => chat.id === threadId && chat.archived) ||
       allowance.answersRemaining === 0;
     question.disabled = pending || disposed;
     selection.disabled = pending || disposed;
     picker.disabled = pending || disposed;
     newChat.disabled = pending || disposed;
+    management.update(chats, threadId, pending);
   }
   question.oninput = () => {
     requestKey = crypto.randomUUID();
@@ -101,11 +115,15 @@ export function mountAnswers(
       `/workspaces/${workspaceId}/answers`,
     );
     const usage = await api<PlanUsage>("/usage");
+    const metadata = await api<Conversation[]>(
+      `/workspaces/${workspaceId}/conversations`,
+    );
     if (disposed) return;
     allowance = usage;
     planUsage.update(usage);
     updateControls();
     answers = saved;
+    chats = metadata;
     if (
       threadId &&
       !answers.some((answer) => (answer.threadId ?? answer.id) === threadId)
@@ -114,13 +132,10 @@ export function mountAnswers(
     root.querySelector("#answer-usage")!.textContent =
       `${usage.answersRemaining} of 20 lifetime answers remaining`;
     renderHistory();
-    onHistory(conversations(answers));
+    onHistory(chats.filter((chat) => !chat.archived));
   }
   function renderHistory() {
-    picker.replaceChildren(new Option("New conversation", ""));
-    for (const thread of conversations(answers))
-      picker.append(new Option(thread.title, thread.id));
-    picker.value = threadId ?? "";
+    management.update(chats, threadId, pending);
     history.replaceChildren();
     if (!threadId) {
       const empty = document.createElement("div");
@@ -170,6 +185,7 @@ export function mountAnswers(
     requestAnimationFrame(() => {
       if (!disposed) history.scrollTop = history.scrollHeight;
     });
+    updateControls();
   }
   form.onsubmit = (event) => {
     event.preventDefault();
@@ -217,6 +233,7 @@ export function mountAnswers(
     openConversation,
     dispose() {
       disposed = true;
+      management.dispose();
       planUsage.dispose();
     },
     setDocuments(documents: DocumentRecord[]) {

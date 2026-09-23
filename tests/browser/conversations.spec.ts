@@ -86,4 +86,71 @@ test("separate conversations reopen from dashboard with their own saved answers"
       .locator("#answer-history")
       .evaluate((node) => node.scrollHeight > node.clientHeight),
   ).toBe(true);
+  await expect(page.locator(".chat-title-row h3")).toHaveText(
+    "When are shop drawings due?",
+  );
+  await page.getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("button", { name: "Rename", exact: true }).click();
+  await page
+    .getByLabel("Conversation title", { exact: true })
+    .fill("Drawing deadlines");
+  await page.getByRole("button", { name: "Save title", exact: true }).click();
+  await expect(page.locator(".chat-title-row h3")).toHaveText(
+    "Drawing deadlines",
+  );
+  await page.reload();
+  await expect(page.locator(".chat-title-row h3")).toHaveText(
+    "Drawing deadlines",
+  );
+  await page.screenshot({
+    path: test.info().outputPath("populated-chat.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("button", { name: "Archive", exact: true }).click();
+  await expect(
+    page.getByText(
+      "This conversation is archived. Restore it to ask more questions.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ask selected document" }),
+  ).toBeDisabled();
+  await page.getByText("Chat history", { exact: true }).click();
+  await page.getByLabel("Show archived conversations").check();
+  await page.getByLabel("Search conversations").fill("deadlines");
+  await expect(
+    page.getByLabel("Conversation", { exact: true }).locator("option"),
+  ).toHaveCount(2);
+  await page.getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("button", { name: "Restore", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Ask selected document" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator(".saved-answer")).toHaveCount(4);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Delete conversation", exact: true })
+    .click();
+  await expect(page.locator(".saved-answer")).toHaveCount(0);
+  await expect(page.locator(".chat-title-row h3")).toHaveText(
+    "New conversation",
+  );
+  await expect(
+    page.getByText("15 of 20 lifetime answers remaining", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: test.info().outputPath("managed-chat.png"),
+    fullPage: true,
+  });
 });

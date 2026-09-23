@@ -687,8 +687,100 @@
   background: var(--success-bg);
 }
 .answer-panel {
+  position: relative;
   max-width: 900px;
   margin-inline: auto;
+}
+.chat-management {
+  min-width: 0;
+}
+.chat-title-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.chat-title-row h3 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.chat-more {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  letter-spacing: 2px;
+}
+.chat-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.chat-library {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.chat-library summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 24px;
+}
+.chat-library label {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.chat-library label.acknowledgement {
+  display: flex;
+  align-items: center;
+}
+.chat-library input[type="search"],
+.chat-library select {
+  width: 100%;
+  min-width: 0;
+}
+.chat-management dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem;
+}
+.chat-management dialog::backdrop {
+  background: #07142788;
+}
+.chat-management dialog input {
+  width: 100%;
+}
+.chat-management dialog .form-actions {
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+.chat-management > [role="status"]:empty {
+  display: none;
+}
+@media (hover: hover) {
+  .chat-more {
+    opacity: 0.7;
+  }
+  .chat-title-row:hover .chat-more,
+  .chat-more:focus-visible,
+  .chat-more[aria-expanded="true"] {
+    opacity: 1;
+  }
 }
 .answer-panel > .eyebrow {
   color: var(--blue);

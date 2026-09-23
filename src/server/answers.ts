@@ -1,5 +1,6 @@
 import type { DocumentRecord, DocumentServices, Passage } from "./documents.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
+import { conversationRoute, type ConversationStore } from "./conversations.ts";
 
 export interface Evidence {
   id: string;
@@ -32,7 +33,7 @@ export interface IndexedChunk {
   evidence: Evidence[];
   vector: number[];
 }
-export interface AnswerStore {
+export interface AnswerStore extends ConversationStore {
   findAnswer(
     ownerId: string,
     requestKey: string,
@@ -244,6 +245,14 @@ export async function answerRoute(
   ownsWorkspace: (id: string) => Promise<boolean>,
   now: number,
 ): Promise<Response | undefined> {
+  const managed = await conversationRoute(
+    request,
+    ownerId,
+    services.store,
+    ownsWorkspace,
+    now,
+  );
+  if (managed) return managed;
   const path = new URL(request.url).pathname;
   const match = path.match(/^\/api\/workspaces\/([^/]+)\/answers$/);
   if (!match) return;
@@ -313,6 +322,17 @@ export async function answerRoute(
     : [];
   if (threadId && !conversation.length)
     throw new HttpError(404, "Conversation not found.");
+  if (threadId && services.store.listConversations) {
+    const chat = (
+      await services.store.listConversations(ownerId, workspaceId)
+    ).find((item) => item.id === threadId);
+    if (!chat) throw new HttpError(404, "Conversation not found.");
+    if (chat.archived)
+      throw new HttpError(
+        409,
+        "Restore this conversation before asking another question.",
+      );
+  }
   const history: ConversationTurn[] = conversation.slice(-4).map((answer) => ({
     question: answer.question.slice(0, 1000),
     text: answer.text.slice(0, 2000),

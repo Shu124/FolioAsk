@@ -261,6 +261,107 @@ test("conversations persist, isolate follow-up context, and preserve retry ident
       await call(path, "POST", ask("Report context limits", longThread), cookie)
     ).json();
     assert.equal(bounded.text, "4:1000:2000");
+    const chatsPath = `/workspaces/${project.id}/conversations`;
+    const chats = await call(chatsPath, "GET", undefined, cookie);
+    assert.equal(chats.status, 200);
+    assert.equal(
+      (await chats.json()).find((chat: { id: string }) => chat.id === first.id)
+        .title,
+      first.question,
+    );
+    const threadPath = `${chatsPath}/${first.id}`;
+    assert.equal(
+      (await call(threadPath, "PATCH", { title: "Drawing schedule" }, cookie))
+        .status,
+      200,
+    );
+    assert.equal(
+      (await call(threadPath, "PATCH", { title: " " }, cookie)).status,
+      400,
+    );
+    assert.equal(
+      (await call(threadPath, "PATCH", { archived: true }, bob)).status,
+      404,
+    );
+    assert.equal(
+      (
+        await call(
+          `/workspaces/${other.id}/conversations/${first.id}`,
+          "DELETE",
+          { confirm: true },
+          cookie,
+        )
+      ).status,
+      404,
+    );
+    assert.equal(
+      (await call(threadPath, "PATCH", { archived: true }, cookie)).status,
+      200,
+    );
+    assert.equal(
+      (await call(path, "POST", ask("Archived followup", first.id), cookie))
+        .status,
+      409,
+    );
+    assert.equal(
+      (await call(threadPath, "PATCH", { archived: false }, cookie)).status,
+      200,
+    );
+    assert.equal(
+      (await (await call(chatsPath, "GET", undefined, cookie)).json()).find(
+        (chat: { id: string }) => chat.id === first.id,
+      ).title,
+      "Drawing schedule",
+    );
+    const usageBefore = await (
+      await call("/usage", "GET", undefined, cookie)
+    ).json();
+    assert.equal((await call(threadPath, "DELETE", {}, cookie)).status, 400);
+    let release!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalAnswer = provider.answer;
+    provider.answer = async (...args) => {
+      started();
+      await gate;
+      return originalAnswer(...args);
+    };
+    const pending = call(
+      path,
+      "POST",
+      ask("Finishing after deletion", first.id),
+      cookie,
+    );
+    await entered;
+    assert.equal(
+      (await call(threadPath, "DELETE", { confirm: true }, cookie)).status,
+      200,
+    );
+    release();
+    assert.equal((await pending).status, 410);
+    assert.equal(
+      (await call(threadPath, "PATCH", { title: "Resurrect" }, cookie)).status,
+      404,
+    );
+    assert.ok(
+      !(await (await call(path, "GET", undefined, cookie)).json()).some(
+        (a: { threadId: string }) => a.threadId === first.id,
+      ),
+    );
+    assert.deepEqual(
+      await (await call("/usage", "GET", undefined, cookie)).json(),
+      usageBefore,
+    );
+    assert.equal(
+      (await call(`/documents/${document.id}`, "GET", undefined, cookie))
+        .status,
+      200,
+    );
   } finally {
     store.close();
   }

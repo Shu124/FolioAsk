@@ -517,6 +517,30 @@ Google quota availability; those remain operator/release checks.
 
 ## Implementation progress and remaining work
 
+### Chat management rollout (#38)
+
+Conversation titles, archive state and deletion tombstones require
+`supabase/migrations/008_conversations.sql`. Apply **once**, after migrations 001–007,
+in Supabase SQL Editor **before deploying the chat-management commit**. It backfills
+legacy conversations and keeps the existing answer RPC compatible with the previous
+app. It does not enable Gemini, change quotas or activate paid plans.
+
+1. Back up the database using your normal Supabase backup/export process.
+2. Open Supabase → FolioAsk → SQL Editor → New query. Paste the entire migration
+   and run it once. It is transactional; stop on errors rather than rerunning parts.
+3. Confirm `select count(*) from public.folio_conversations;` succeeds. Zero is
+   valid when there are no saved answers. Do not send chat contents or credentials.
+4. Deploy the reviewed application commit only after the migration succeeds.
+5. In a test account, ask a question, rename its chat, reload, archive/restore it,
+   then delete it after confirming. The document remains and usage is not refunded.
+
+Deleted conversations retain only a metadata tombstone to stop an in-flight answer
+from recreating them; saved question/answer rows are removed. Source PDFs and usage
+remain. Archived conversations are read-only until restored. These controls are
+project-scoped; account-wide history settings are tracked separately in #41.
+Automated PostgreSQL-compatible tests do not prove hosted multi-connection behavior;
+live migration and smoke verification remain operator steps.
+
 ### Workspace upgrade: profile onboarding and project navigation (#37)
 
 New accounts complete a display-name/industry step and acknowledge the Free pilot

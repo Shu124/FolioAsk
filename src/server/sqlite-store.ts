@@ -7,6 +7,7 @@ import type {
   Usage,
 } from "./documents.ts";
 import { HttpError } from "./http.ts";
+import type { Conversation, ConversationChange } from "./conversations.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 import type { ActivityStore, ActiveTime } from "./activity.ts";
 import { SqliteStorageGuard } from "./sqlite-storage-guard.ts";
@@ -43,6 +44,16 @@ export class SqliteStore
         "ALTER TABLE usage ADD COLUMN answers INTEGER NOT NULL DEFAULT 0",
       );
     this.storageGuard = new SqliteStorageGuard(this.db, storagePolicy);
+    this.db
+      .exec(`CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,workspace_id TEXT NOT NULL,data TEXT NOT NULL);
+      INSERT OR IGNORE INTO conversations
+      WITH ordered_answers AS (SELECT *,first_value(json_extract(data,'$.question')) OVER
+        (PARTITION BY coalesce(json_extract(data,'$.threadId'),id),owner_id,workspace_id ORDER BY json_extract(data,'$.createdAt'),id) AS first_question FROM answers)
+      SELECT coalesce(json_extract(data,'$.threadId'),id),owner_id,workspace_id,
+      json_object('id',coalesce(json_extract(data,'$.threadId'),id),'ownerId',owner_id,'workspaceId',workspace_id,
+      'title',substr(first_question,1,100),'archived',json('false'),
+      'createdAt',min(json_extract(data,'$.createdAt')),'updatedAt',max(json_extract(data,'$.createdAt')))
+      FROM ordered_answers GROUP BY coalesce(json_extract(data,'$.threadId'),id),owner_id,workspace_id;`);
   }
   async storageSnapshot(ownerId: string) {
     return this.storageGuard.snapshot(ownerId);
@@ -269,6 +280,54 @@ export class SqliteStore
       .get(ownerId, requestKey);
     return row ? JSON.parse(String(row.data)) : undefined;
   }
+  async listConversations(
+    ownerId: string,
+    workspaceId: string,
+  ): Promise<Conversation[]> {
+    return this.db
+      .prepare(
+        "SELECT data FROM conversations WHERE owner_id=? AND workspace_id=? AND json_extract(data,'$.deletedAt') IS NULL ORDER BY json_extract(data,'$.updatedAt') DESC",
+      )
+      .all(ownerId, workspaceId)
+      .map((row) => JSON.parse(String(row.data)));
+  }
+  async changeConversation(
+    ownerId: string,
+    workspaceId: string,
+    id: string,
+    change: ConversationChange,
+  ): Promise<Conversation> {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const row = this.db
+        .prepare(
+          "SELECT data FROM conversations WHERE id=? AND owner_id=? AND workspace_id=?",
+        )
+        .get(id, ownerId, workspaceId);
+      const chat: Conversation | undefined = row
+        ? JSON.parse(String(row.data))
+        : undefined;
+      if (!chat || chat.deletedAt !== undefined)
+        throw new HttpError(404, "Conversation not found.");
+      Object.assign(chat, change);
+      if (chat.deletedAt !== undefined) {
+        chat.title = "";
+        this.db
+          .prepare(
+            "DELETE FROM answers WHERE owner_id=? AND workspace_id=? AND coalesce(json_extract(data,'$.threadId'),id)=?",
+          )
+          .run(ownerId, workspaceId, id);
+      }
+      this.db
+        .prepare("UPDATE conversations SET data=? WHERE id=?")
+        .run(JSON.stringify(chat), id);
+      this.db.exec("COMMIT");
+      return chat;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   async listAnswers(
     ownerId: string,
     workspaceId: string,
@@ -307,6 +366,36 @@ export class SqliteStore
   async commitAnswer(answer: AnswerRecord): Promise<AnswerRecord> {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      const thread = answer.threadId ?? answer.id;
+      const existing = this.db
+        .prepare("SELECT data FROM conversations WHERE id=?")
+        .get(thread);
+      const chat: Conversation = existing
+        ? JSON.parse(String(existing.data))
+        : {
+            id: thread,
+            ownerId: answer.ownerId,
+            workspaceId: answer.workspaceId,
+            title: answer.question.slice(0, 100),
+            archived: false,
+            createdAt: answer.createdAt,
+            updatedAt: answer.createdAt,
+          };
+      if (
+        chat.ownerId !== answer.ownerId ||
+        chat.workspaceId !== answer.workspaceId
+      )
+        throw new HttpError(404, "Conversation not found.");
+      if (chat.deletedAt !== undefined)
+        throw new HttpError(
+          410,
+          "This conversation was deleted. Start a new chat.",
+        );
+      if (chat.archived)
+        throw new HttpError(
+          409,
+          "Restore this conversation before asking another question.",
+        );
       for (const id of answer.documentIds) {
         const source = this.db
           .prepare(
@@ -355,6 +444,12 @@ export class SqliteStore
           answer.requestKey,
           JSON.stringify(answer),
         );
+      chat.updatedAt = Math.max(chat.updatedAt, answer.createdAt);
+      this.db
+        .prepare(
+          "INSERT INTO conversations VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+        )
+        .run(chat.id, chat.ownerId, chat.workspaceId, JSON.stringify(chat));
       this.db.exec("COMMIT");
       return answer;
     } catch (error) {
