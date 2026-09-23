@@ -49,6 +49,13 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
     await trigger.click();
     await expect(search).toBeFocused();
     const box = await panel.boundingBox();
+    const anchor = await trigger.boundingBox();
+    if (viewport.height - anchor!.y - anchor!.height > box!.height + 24) {
+      expect(
+        Math.abs(box!.y - anchor!.y - anchor!.height - 8),
+        "picker should stay attached to its project trigger",
+      ).toBeLessThan(2);
+    }
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);

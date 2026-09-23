@@ -18,6 +18,10 @@ Browser tests exercise sign-in/onboarding, uploads, document tables, conversatio
 
 Tests use isolated local services and synthetic fixtures, not live customer files or billable AI calls. The original short-laptop regression was reproduced twice before the fix. Screenshot artifacts are generated under `test-results/` and are not committed.
 
+Verification outcome: 36 API and 9 Cloudflare-runtime tests passed. The full browser run passed 71/73 cases; the multi-screen mobile visual flow exceeded its 30-second total timeout, and the narrow-phone PDF preview completed just after its five-second assertion window. The visual flow now has a 60-second total budget. A seven-case final rerun passed both failures, the desktop/mobile picker regressions and the composer keyboard-order checks. The narrow-phone test passed without changing its assertion timeout. Production build passed (the existing lazy-loaded PDF.js chunk still emits a bundle-size warning).
+
+Independent Standards and Spec reviews found no blocking issues. The Standards review's optional keyboard-order improvement was implemented and rechecked: question entry now precedes source selection in both DOM and visual order.
+
 ## Release boundary
 
 This UI slice adds **no database changes** and activates no paid service. The branch also contains the earlier conversation work (#38), which requires `supabase/migrations/008_conversations.sql` before deployment. Do not push/deploy the combined branch until that migration is confirmed. Upload-time embeddings (#39), additional dashboard functionality (#40), and broader settings/history work (#41) are separate pending scope; this audit does not claim those tickets complete.

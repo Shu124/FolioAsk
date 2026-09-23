@@ -79,6 +79,8 @@ test("public demo and signup remain usable with enlarged text", async ({
 test("readable product UI across populated screens and themes", async ({
   page,
 }) => {
+  // This flow captures every workspace/settings screen in both themes.
+  test.setTimeout(60000);
   await page.goto("/");
   await page.evaluate(() => document.fonts.ready);
   await page
