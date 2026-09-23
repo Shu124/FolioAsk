@@ -1,4 +1,5 @@
 import { completeOnboarding } from "../fixtures/onboarding";
+import { openProjectView } from "../fixtures/navigation";
 import { test, expect } from "@playwright/test";
 
 test("project creation stays in the body and Chat has no upload panel", async ({
@@ -34,17 +35,21 @@ test("project creation stays in the body and Chat has no upload panel", async ({
       name: "Project navigation",
       includeHidden: true,
     })
-    .getByRole("button", { name: "Chat", exact: true });
-  await chat.click();
+    .getByRole("button", { name: "Chat", exact: true, includeHidden: true });
+  await openProjectView(page, "Chat");
   await expect(chat).toHaveAttribute("aria-current", "page");
   await expect(page.getByLabel("Your question")).toBeVisible();
   await expect(page.getByLabel("Choose PDF")).toBeHidden();
   await expect(chat.locator("svg")).toHaveCount(1);
   if (page.viewportSize()!.width < 761) {
-    await page.getByRole("button", { name: "Toggle navigation" }).click();
     await expect(chat).toBeHidden();
     await page.getByRole("button", { name: "Toggle navigation" }).click();
     await expect(chat).toBeVisible();
+    await page.getByRole("button", { name: "Close navigation" }).click();
+    await expect(chat).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Toggle navigation" }),
+    ).toBeFocused();
   }
   expect(
     await page.evaluate(

@@ -71,14 +71,22 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
     }
     await trigger.click();
     await expect(search).toBeFocused();
+    // Resize and mobile viewport events can arrive after the tap. Wait for the
+    // public UI to settle, but still fail if the picker remains detached.
+    await expect
+      .poll(
+        async () => {
+          const box = await panel.boundingBox();
+          const anchor = await trigger.boundingBox();
+          if (!box || !anchor) return Infinity;
+          return viewport.height - anchor.y - anchor.height > box.height + 24
+            ? Math.abs(box.y - anchor.y - anchor.height - 8)
+            : 0;
+        },
+        { message: "picker should settle against its project trigger" },
+      )
+      .toBeLessThan(2);
     const box = await panel.boundingBox();
-    const anchor = await trigger.boundingBox();
-    if (viewport.height - anchor!.y - anchor!.height > box!.height + 24) {
-      expect(
-        Math.abs(box!.y - anchor!.y - anchor!.height - 8),
-        `picker should stay attached to its project trigger: ${JSON.stringify({ viewport, box, anchor })}`,
-      ).toBeLessThan(2);
-    }
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
