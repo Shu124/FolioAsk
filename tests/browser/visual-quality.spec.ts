@@ -147,6 +147,11 @@ test("readable product UI across populated screens and themes", async ({
           historyHeight,
           "chat should provide a readable message area",
         ).toBeGreaterThanOrEqual(160);
+        await page.getByLabel("Your question").focus();
+        await page.keyboard.press("Tab");
+        await expect(
+          page.getByLabel("Selected document", { exact: true }),
+        ).toBeFocused();
       }
       if (view === "Documents") {
         const table = await page.locator("#document-buttons").boundingBox();

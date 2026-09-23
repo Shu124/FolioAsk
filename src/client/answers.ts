@@ -24,6 +24,7 @@ export function mountAnswers(
   const history = root.querySelector<HTMLElement>("#answer-history")!;
   selection.parentElement!.classList.add("composer-source");
   question.parentElement!.classList.add("composer-question");
+  form.prepend(question.parentElement!);
   question.rows = 2;
   const usagePanel = document.createElement("section");
   usagePanel.setAttribute("aria-label", "Answer allowance");
