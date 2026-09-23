@@ -1,3 +1,4 @@
+import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
@@ -19,10 +20,7 @@ test("settings theme persists across app, landing and system appearance", async 
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Settings", exact: true })
-    .click();
+  await openProjectView(page, "Settings");
   const appearance = page
     .getByRole("navigation", { name: "Settings sections" })
     .getByRole("button", { name: "Appearance", exact: true });
@@ -40,10 +38,7 @@ test("settings theme persists across app, landing and system appearance", async 
     "rgb(255, 255, 255)",
   );
   await page.goto("/app");
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Settings", exact: true })
-    .click();
+  await openProjectView(page, "Settings");
   await appearance.click();
   await page.getByLabel("Theme", { exact: true }).selectOption("system");
   await page.emulateMedia({ colorScheme: "dark" });
@@ -73,10 +68,7 @@ test("account and project settings save, show usage, and require password reauth
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Settings", exact: true })
-    .click();
+  await openProjectView(page, "Settings");
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   await page.getByLabel("Display name", { exact: true }).fill("Researcher");
   await page.getByRole("button", { name: "Save name", exact: true }).click();
@@ -114,6 +106,14 @@ test("account and project settings save, show usage, and require password reauth
     sections.getByRole("button", { name: "Usage", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await sections.getByRole("button", { name: "Account", exact: true }).click();
+  await expect(
+    page.getByLabel("Current password", { exact: true }),
+  ).toBeHidden();
+  await sections.getByRole("button", { name: "Security", exact: true }).click();
+  await expect(
+    page.getByLabel("Current password", { exact: true }),
+  ).toBeHidden();
+  await page.getByText("Change email password", { exact: true }).click();
   await page.getByLabel("Current password", { exact: true }).fill("incorrect");
   await page
     .getByLabel("New password", { exact: true })

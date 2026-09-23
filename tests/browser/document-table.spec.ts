@@ -1,3 +1,4 @@
+import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -20,17 +21,18 @@ test("document table searches, trashes and restores without resetting allowance"
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  const nav = page.getByRole("navigation", { name: "Project navigation" });
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  const nav = page.getByRole("navigation", {
+    name: "Project navigation",
+    includeHidden: true,
+  });
+  await openProjectView(page, "Documents");
   await expect(page.getByLabel("Choose PDF")).toBeHidden();
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page
-    .getByLabel("Choose PDF")
-    .setInputFiles({
-      name: "contract.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await samplePdf()),
-    });
+  await page.getByLabel("Choose PDF").setInputFiles({
+    name: "contract.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await samplePdf()),
+  });
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByRole("button", { name: "Close source" }).click();
@@ -40,11 +42,11 @@ test("document table searches, trashes and restores without resetting allowance"
   await page.getByLabel("Search documents").fill("missing");
   await expect(page.getByText("No matching documents.")).toBeVisible();
   await page.getByLabel("Search documents").fill("");
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(1);
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await openProjectView(page, "Documents");
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: "Move contract.pdf to Trash" })
@@ -53,7 +55,7 @@ test("document table searches, trashes and restores without resetting allowance"
   await expect(
     page.getByText("2 of 3 lifetime uploads remaining"),
   ).toBeVisible();
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await expect(
     page.getByRole("button", { name: "Source · page 1 · In Trash" }),
   ).toBeVisible();
@@ -65,7 +67,7 @@ test("document table searches, trashes and restores without resetting allowance"
     .click();
   await expect(page.getByRole("dialog")).toContainText("in Trash");
   await page.getByRole("button", { name: "Close source" }).click();
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await openProjectView(page, "Documents");
   await page.reload();
   await page.getByRole("button", { name: "Trash", exact: true }).click();
   await page.getByRole("button", { name: "Restore contract.pdf" }).click();

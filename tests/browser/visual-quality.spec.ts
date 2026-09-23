@@ -1,3 +1,4 @@
+import { openProjectView, openNavigation } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -115,8 +116,11 @@ test("readable product UI across populated screens and themes", async ({
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  const nav = page.getByRole("navigation", { name: "Project navigation" });
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  const nav = page.getByRole("navigation", {
+    name: "Project navigation",
+    includeHidden: true,
+  });
+  await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "Construction agreement.pdf",
@@ -129,7 +133,7 @@ test("readable product UI across populated screens and themes", async ({
   await expect(page.locator("#upload-status")).toContainText(
     "Your document is ready.",
   );
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(1);
@@ -137,7 +141,7 @@ test("readable product UI across populated screens and themes", async ({
     if (theme === "dark")
       await page.getByRole("button", { name: "Switch to dark mode" }).click();
     for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
-      await nav.getByRole("button", { name: view, exact: true }).click();
+      await openProjectView(page, view);
       if (view === "Chat") {
         await expect(
           page.getByRole("button", { name: "New chat", exact: true }),
@@ -239,10 +243,16 @@ test("readable product UI across populated screens and themes", async ({
     expect(item.size, `${item.tag} should be readable`).toBeGreaterThanOrEqual(
       item.tag === "INPUT" ? 16 : 14,
     );
+  await openNavigation(page);
   for (const button of await nav.getByRole("button").all()) {
     await expect(button.locator("svg")).toHaveCount(1);
     expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
+  const closeNavigation = page.getByRole("button", {
+    name: "Close navigation",
+    exact: true,
+  });
+  if (await closeNavigation.isVisible()) await closeNavigation.click();
   for (const button of await page
     .getByRole("navigation", { name: "Settings sections" })
     .getByRole("button")
@@ -252,7 +262,7 @@ test("readable product UI across populated screens and themes", async ({
     document.documentElement.style.fontSize = "200%";
   });
   for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
-    await nav.getByRole("button", { name: view, exact: true }).click();
+    await openProjectView(page, view);
     const layout = await page.evaluate(() => ({
       fits: document.documentElement.scrollWidth <= innerWidth,
       overflow: [...document.querySelectorAll<HTMLElement>("body *")]
@@ -269,7 +279,10 @@ test("readable product UI across populated screens and themes", async ({
       `${view} fits at 200% text size: ${layout.overflow.join(", ")}`,
     ).toBe(true);
   }
-  await nav.getByRole("button", { name: "Settings", exact: true }).focus();
+  await openNavigation(page);
+  await nav
+    .getByRole("button", { includeHidden: true, name: "Settings", exact: true })
+    .focus();
   await page.keyboard.press("Tab");
   expect(
     await page.evaluate(

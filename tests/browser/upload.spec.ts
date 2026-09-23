@@ -1,3 +1,4 @@
+import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -16,10 +17,7 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Upload journey");
   await page.getByRole("button", { name: "Create project" }).click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Documents", exact: true })
-    .click();
+  await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",

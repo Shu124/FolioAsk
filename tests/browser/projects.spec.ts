@@ -1,3 +1,4 @@
+import { openProjectView, openNavigation } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
@@ -120,14 +121,18 @@ test("first project onboarding leads to persistent sidebar navigation", async ({
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  const nav = page.getByRole("navigation", { name: "Project navigation" });
+  const nav = page.getByRole("navigation", {
+    name: "Project navigation",
+    includeHidden: true,
+  });
+  await openNavigation(page);
   await expect(nav).toBeVisible();
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
   await expect(page.getByLabel("Choose PDF")).toBeVisible();
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await expect(page.getByLabel("Your question")).toBeVisible();
-  await nav.getByRole("button", { name: "Dashboard", exact: true }).click();
+  await openProjectView(page, "Dashboard");
   await expect(
     page.getByRole("heading", { name: "Recent activity" }),
   ).toBeVisible();
@@ -136,7 +141,11 @@ test("first project onboarding leads to persistent sidebar navigation", async ({
     page.getByRole("heading", { name: "Elm Street", exact: true }),
   ).toBeVisible();
   await expect(
-    nav.getByRole("button", { name: "Dashboard", exact: true }),
+    nav.getByRole("button", {
+      includeHidden: true,
+      name: "Dashboard",
+      exact: true,
+    }),
   ).toHaveAttribute("aria-current", "page");
   expect(
     await page.evaluate(

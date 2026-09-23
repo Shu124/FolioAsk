@@ -1,6 +1,6 @@
 import type { Conversation } from "../server/conversations";
 import type { Api } from "./documents";
-import { labelWithIcon } from "./icons";
+import { labelWithIcon, icon } from "./icons";
 
 export function mountChatManagement(
   root: HTMLElement,
@@ -8,6 +8,7 @@ export function mountChatManagement(
   workspaceId: string,
   api: Api,
   refreshed: () => Promise<void>,
+  pendingChanged: (pending: boolean) => void = () => {},
 ) {
   root.className = "chat-management";
   root.innerHTML = `<div class="chat-title-row"><h3>New conversation</h3><button type="button" class="chat-more" aria-label="Conversation actions" aria-expanded="false">•••</button></div><div class="chat-actions" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="archive">Archive</button><button type="button" data-action="delete">Delete</button></div><details class="chat-library"><summary>Chat history</summary><label>Search conversations<input type="search" placeholder="Find a conversation"></label><label class="acknowledgement"><input type="checkbox">Show archived conversations</label><div class="chat-picker"></div><p class="quiet library-empty" hidden>No conversations match your search.</p></details><p class="quiet archive-notice" hidden>This conversation is archived. Restore it to ask more questions.</p><p role="status"></p><dialog aria-labelledby="chat-dialog-title"><form><h2 id="chat-dialog-title"></h2><p class="dialog-description"></p><label>Conversation title<input name="title" maxlength="100" required></label><p role="status" class="dialog-error"></p><div class="form-actions"><button type="button" class="cancel">Cancel</button><button type="submit" class="primary confirm">Save title</button></div></form></dialog>`;
@@ -19,6 +20,9 @@ export function mountChatManagement(
     'input[type="checkbox"]',
   )!;
   const dialog = root.querySelector<HTMLDialogElement>("dialog")!;
+  const dialogTitle = root.querySelector<HTMLElement>("#chat-dialog-title")!;
+  dialogTitle.id = `chat-dialog-${crypto.randomUUID()}`;
+  dialog.setAttribute("aria-labelledby", dialogTitle.id);
   const dialogForm = dialog.querySelector("form")!;
   const titleInput = dialog.querySelector<HTMLInputElement>(
     'input[name="title"]',
@@ -26,6 +30,14 @@ export function mountChatManagement(
   const confirm = dialog.querySelector<HTMLButtonElement>(".confirm")!;
   const status = root.querySelector<HTMLElement>(':scope > [role="status"]')!;
   root.querySelector(".chat-picker")!.append(picker.parentElement!);
+  const library = root.querySelector<HTMLDetailsElement>(".chat-library")!;
+  const emptyMessage = root.querySelector<HTMLElement>(".library-empty")!;
+  const list = document.createElement("div");
+  list.className = "conversation-list";
+  list.setAttribute("aria-label", "Recent conversations");
+  library.querySelector(".chat-picker")!.before(list);
+  // The native select remains an accessible alternative for a long history.
+  picker.parentElement!.classList.add("conversation-select");
   let chats: Conversation[] = [],
     current: Conversation | undefined;
   let disposed = false,
@@ -39,6 +51,7 @@ export function mountChatManagement(
     more.setAttribute("aria-expanded", "false");
   }
   function renderPicker() {
+    picker.disabled = busy || submitting;
     const filtered = chats.filter(
       (chat) =>
         chat.archived === archived.checked &&
@@ -50,12 +63,30 @@ export function mountChatManagement(
       current && filtered.some((chat) => chat.id === current!.id)
         ? current.id
         : "";
-    root.querySelector<HTMLElement>(".library-empty")!.hidden =
-      filtered.length > 0;
+    emptyMessage.hidden = filtered.length > 0;
+    list.replaceChildren();
+    for (const chat of filtered) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.innerHTML = icon("Chat");
+      const text = document.createElement("span");
+      text.textContent = chat.title;
+      button.append(text);
+      button.title = chat.title;
+      button.disabled = busy || submitting;
+      if (chat.id === current?.id) button.setAttribute("aria-current", "true");
+      button.onclick = () => {
+        picker.value = chat.id;
+        picker.dispatchEvent(new Event("change"));
+      };
+      list.append(button);
+    }
   }
   async function mutate(method: string, body: unknown) {
     if (!current || disposed || submitting) return;
     submitting = true;
+    pendingChanged(true);
+    renderPicker();
     confirm.disabled = true;
     more.disabled = true;
     dialog.querySelector<HTMLElement>(".dialog-error")!.textContent = "";
@@ -82,6 +113,8 @@ export function mountChatManagement(
       if (!disposed) {
         confirm.disabled = false;
         more.disabled = busy || !current;
+        renderPicker();
+        pendingChanged(false);
       }
     }
   }
@@ -142,6 +175,7 @@ export function mountChatManagement(
     );
   };
   return {
+    library,
     update(items: Conversation[], id: string | undefined, pending: boolean) {
       if (disposed) return;
       chats = items;
@@ -162,6 +196,7 @@ export function mountChatManagement(
     dispose() {
       disposed = true;
       dialog.close();
+      library.remove();
       root.replaceChildren();
     },
   };

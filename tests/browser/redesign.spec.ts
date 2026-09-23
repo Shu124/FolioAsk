@@ -30,7 +30,10 @@ test("project creation stays in the body and Chat has no upload panel", async ({
       .getByRole("button", { name: "Add project", exact: true }),
   ).toBeVisible();
   const chat = page
-    .getByRole("navigation", { name: "Project navigation" })
+    .getByRole("navigation", {
+      name: "Project navigation",
+      includeHidden: true,
+    })
     .getByRole("button", { name: "Chat", exact: true });
   await chat.click();
   await expect(chat).toHaveAttribute("aria-current", "page");

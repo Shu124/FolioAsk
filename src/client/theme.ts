@@ -48,6 +48,7 @@ export function mountTheme(root: HTMLElement, shortcut: HTMLButtonElement) {
       dark ? "Sun" : "Moon",
       dark ? "Switch to light mode" : "Switch to dark mode",
     );
+    shortcut.title = dark ? "Switch to light mode" : "Switch to dark mode";
   };
   select.onchange = () => {
     if (valid(select.value)) setTheme(select.value);

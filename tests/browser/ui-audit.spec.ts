@@ -1,3 +1,4 @@
+import { openProjectView } from "../fixtures/navigation";
 import { test, expect, type Page } from "@playwright/test";
 import { completeOnboarding } from "../fixtures/onboarding";
 
@@ -84,6 +85,9 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
   await page
     .getByRole("button", { name: "Toggle navigation", exact: true })
     .click();
+  await page
+    .getByRole("button", { name: "Close navigation", exact: true })
+    .click();
   await expect(trigger).toBeVisible();
   await trigger.click();
   await search.fill("Finance");
@@ -103,7 +107,7 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
   await page.screenshot({
     path: test.info().outputPath("picker-enlarged-text.png"),
   });
-  await page.getByRole("link", { name: "FolioAsk", exact: true }).focus();
+  await page.getByRole("button", { name: "Add project", exact: true }).focus();
   await expect(panel).toBeHidden();
   await page.evaluate(() => (document.documentElement.style.fontSize = ""));
   await trigger.click();
@@ -132,7 +136,10 @@ test("project switcher does not move or scroll navigation on a short laptop", as
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  const nav = page.getByRole("navigation", { name: "Project navigation" });
+  const nav = page.getByRole("navigation", {
+    name: "Project navigation",
+    includeHidden: true,
+  });
   await expect(nav).toBeVisible();
   const second = await page.request.post("/api/workspaces", {
     headers: { Origin: new URL(page.url()).origin },
@@ -140,7 +147,7 @@ test("project switcher does not move or scroll navigation on a short laptop", as
   });
   expect(second.ok()).toBe(true);
   await page.reload();
-  await nav.getByRole("button", { name: "Settings", exact: true }).click();
+  await openProjectView(page, "Settings");
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
   const before = await nav.boundingBox();
   await page.locator(".project-switcher-trigger").click();

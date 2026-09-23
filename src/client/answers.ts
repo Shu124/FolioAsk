@@ -7,6 +7,7 @@ import { mountPlanUsage } from "./plan-usage";
 import type { PlanUsage } from "../server/storage-limits";
 import type { Conversation } from "../server/conversations";
 import { mountChatManagement } from "./chat-management";
+import { mountChatLayout } from "./chat-layout";
 
 export function mountAnswers(
   root: HTMLElement,
@@ -42,10 +43,11 @@ export function mountAnswers(
     .querySelector<HTMLElement>(".answer-panel > .quiet")!
     .classList.add("page-description");
   labelWithIcon(button, "Send", "Ask selected document");
+  button.title = "Ask selected document";
   root.querySelector<HTMLElement>(
     ".answer-panel > .quiet:last-child",
   )!.textContent =
-    "Verify cited passages before relying on an answer. Successful answers use your pilot allowance; failed requests do not.";
+    "Verify sources. Successful answers use your pilot allowance; failures do not.";
   let requestKey = crypto.randomUUID();
   let disposed = false;
   let pending = false;
@@ -62,6 +64,7 @@ export function mountAnswers(
   const newChat = document.createElement("button");
   newChat.type = "button";
   labelWithIcon(newChat, "Plus", "New chat");
+  newChat.title = "New chat";
   const managementRoot = document.createElement("section");
   heading.replaceWith(managementRoot);
   const management = mountChatManagement(
@@ -79,6 +82,7 @@ export function mountAnswers(
   const usage = root.querySelector<HTMLElement>("#answer-usage")!;
   description.before(context);
   context.append(description, usage);
+  const layout = mountChatLayout(root, management.library);
   function rememberThread() {
     const url = new URL(location.href);
     if (threadId) url.searchParams.set("thread", threadId);
@@ -96,7 +100,10 @@ export function mountAnswers(
     rememberThread();
     renderHistory();
   }
-  picker.onchange = () => openConversation(picker.value || undefined);
+  picker.onchange = () => {
+    openConversation(picker.value || undefined);
+    layout.closeHistory();
+  };
   newChat.onclick = () => openConversation();
   function updateControls() {
     if (disposed) return;
@@ -239,9 +246,11 @@ export function mountAnswers(
   };
   return {
     refresh,
+    refreshLayout: layout.refresh,
     openConversation,
     dispose() {
       disposed = true;
+      layout.dispose();
       management.dispose();
       planUsage.dispose();
     },

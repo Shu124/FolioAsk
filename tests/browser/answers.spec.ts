@@ -1,3 +1,4 @@
+import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -16,10 +17,7 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
   await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Evidence");
   await page.getByRole("button", { name: "Create project" }).click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Documents", exact: true })
-    .click();
+  await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
@@ -31,10 +29,7 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
     timeout: 20_000,
   });
   await page.getByRole("button", { name: "Close source", exact: true }).click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Chat", exact: true })
-    .click();
+  await openProjectView(page, "Chat");
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator("#answer-history")).toContainText(
@@ -78,10 +73,7 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
   await completeOnboarding(page);
   await page.getByLabel("Project name").fill("Concurrent UI");
   await page.getByRole("button", { name: "Create project" }).click();
-  await page
-    .getByRole("navigation", { name: "Project navigation" })
-    .getByRole("button", { name: "Documents", exact: true })
-    .click();
+  await openProjectView(page, "Documents");
   const file = {
     name: "contract.pdf",
     mimeType: "application/pdf",
@@ -96,15 +88,14 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
   await page.getByRole("button", { name: "Close source", exact: true }).click();
   const navigation = page.getByRole("navigation", {
     name: "Project navigation",
+    includeHidden: true,
   });
-  await navigation.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await page
     .getByLabel("Your question")
     .fill("When are shop drawings due? [slow fixture]");
   await page.getByRole("button", { name: "Ask selected document" }).click();
-  await navigation
-    .getByRole("button", { name: "Documents", exact: true })
-    .click();
+  await openProjectView(page, "Documents");
   await page
     .getByLabel("Choose PDF")
     .setInputFiles({ ...file, name: "second.pdf" });
@@ -113,7 +104,7 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
     page.getByText("1 of 3 lifetime uploads remaining"),
   ).toBeVisible();
   await page.getByRole("button", { name: "Close source", exact: true }).click();
-  await navigation.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await expect(
     page.getByRole("button", { name: "Ask selected document" }),
   ).toBeDisabled({ timeout: 250 });

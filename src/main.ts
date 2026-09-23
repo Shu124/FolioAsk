@@ -3,6 +3,7 @@ import "./style.css";
 import "./workspace.css";
 import "./landing.css";
 import "./demo.css";
+import "./design-b.css";
 import "./client/theme";
 import {
   landingHeader,

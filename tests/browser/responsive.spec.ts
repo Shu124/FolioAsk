@@ -1,3 +1,4 @@
+import { openProjectView, openNavigation } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -14,6 +15,8 @@ const screens = [
   { name: "small-laptop", width: 1280, height: 720 },
   { name: "laptop", width: 1366, height: 768 },
   { name: "landscape-phone", width: 844, height: 390 },
+  { name: "fold-cover", width: 344, height: 882 },
+  { name: "fold-open", width: 717, height: 512 },
 ];
 for (const screen of screens) {
   test.describe(screen.name, () => {
@@ -88,7 +91,11 @@ for (const screen of screens) {
       await page
         .getByRole("button", { name: "Create project", exact: true })
         .click();
-      const nav = page.getByRole("navigation", { name: "Project navigation" });
+      const nav = page.getByRole("navigation", {
+        name: "Project navigation",
+        includeHidden: true,
+      });
+      await openNavigation(page);
       await expect(nav.getByRole("button")).toHaveCount(4);
       if (screen.width <= 960) {
         const rowCounts = await nav
@@ -105,7 +112,7 @@ for (const screen of screens) {
           1,
         );
       }
-      await nav.getByRole("button", { name: "Documents", exact: true }).click();
+      await openProjectView(page, "Documents");
       await page
         .getByRole("button", { name: "Add document", exact: true })
         .click();
@@ -122,7 +129,7 @@ for (const screen of screens) {
       await page
         .getByRole("button", { name: "Close source", exact: true })
         .click();
-      await nav.getByRole("button", { name: "Chat", exact: true }).click();
+      await openProjectView(page, "Chat");
       await page
         .getByLabel("Your question")
         .fill("When are shop drawings due?");
@@ -134,7 +141,7 @@ for (const screen of screens) {
             .getByRole("button", { name: "Switch to dark mode" })
             .click();
         for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
-          await nav.getByRole("button", { name: view, exact: true }).click();
+          await openProjectView(page, view);
           if (view === "Dashboard")
             await expect(
               page.getByLabel("Active documents", { exact: true }),
@@ -160,10 +167,11 @@ for (const screen of screens) {
             path: test.info().outputPath(`${view.toLowerCase()}-${theme}.png`),
             fullPage: true,
           });
-          if (screen.width <= 820) {
+          if (screen.width <= 760) {
             expect
               .soft(
-                (await page.locator(".project-sidebar").boundingBox())!.height,
+                (await page.locator(".mobile-navigation-toggle").boundingBox())!
+                  .height,
                 "navigation should not dominate the small screen",
               )
               .toBeLessThanOrEqual(310);
@@ -192,18 +200,21 @@ for (const screen of screens) {
           }
         }
       }
-      await nav.getByRole("button", { name: "Chat", exact: true }).click();
+      await openProjectView(page, "Chat");
       const question = page.getByLabel("Your question");
       await question.fill("A follow-up draft to keep while resizing");
-      if (screen.width <= 960) {
+      if (screen.width <= 760) {
         const toggle = page.getByRole("button", {
           name: "Toggle navigation",
           exact: true,
         });
         await toggle.focus();
         await page.keyboard.press("Enter");
+        await expect(nav).toBeVisible();
+        await expect(toggle).toHaveAttribute("aria-expanded", "true");
+        await page.keyboard.press("Escape");
         await expect(nav).toBeHidden();
-        await expect(toggle).toHaveAttribute("aria-expanded", "false");
+        await expect(toggle).toBeFocused();
         await page.setViewportSize({ width: 1280, height: 720 });
         await expect(nav).toBeVisible();
         await fits();
@@ -215,6 +226,9 @@ for (const screen of screens) {
         await toggle.focus();
         await page.keyboard.press("Enter");
         await expect(nav).toBeVisible();
+        await page
+          .getByRole("button", { name: "Close navigation", exact: true })
+          .click();
       }
       await question.focus();
       await expect(question).toBeInViewport();
@@ -227,7 +241,7 @@ for (const screen of screens) {
           document.documentElement.style.fontSize = "200%";
         });
         for (const view of ["Dashboard", "Documents", "Chat", "Settings"]) {
-          await nav.getByRole("button", { name: view, exact: true }).click();
+          await openProjectView(page, view);
           await fits();
           expect(
             await page

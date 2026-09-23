@@ -1,5 +1,32 @@
 # FolioAsk
 
+## Design B: responsive workspace (#43)
+
+Design B is the production interface, not the throwaway `/ux-options` mockup.
+Desktop uses a labelled navigation rail, a top-bar project picker and a separate
+conversation-history column. At widths up to 760px navigation moves into a drawer;
+up to 1100px chat history has its own drawer. Phones, tablets and folded/unfolded
+screens adapt to the available CSS width. A short viewport or enlarged text uses
+page scrolling so the composer is not clipped. Light, dark and system themes remain.
+
+Settings → Account contains profile details only. Settings → Chat history manages
+the **current project's** real conversations: rename, archive/restore, delete, or
+confirm clearing the entire project's history. Deletion is permanent; documents,
+other projects and lifetime allowances remain unchanged. Email-enabled accounts
+can explicitly open Change email password under Security; Google-only accounts
+manage their credentials through Google.
+
+This release adds **no new SQL migration, environment variable, API key or paid
+service**. Existing project, conversation and storage setup still applies. Deploy
+the latest `feature/folioask-mvp` commit using the existing Cloudflare build, then
+refresh `/app`. Check login, project switching, Documents, Chat and Settings in both
+themes. On a real phone, also check typing with its keyboard open, rotation, drawer
+close/backdrop/Escape, and (for a foldable) changing between cover and inner screens.
+Automated browser viewport checks are not physical iPhone/Samsung certification.
+
+The local walkthrough below works without live credentials. Use `npm run test`
+for the API/runtime/browser checks and `npm run build` for the production bundle.
+
 ## Workspace redesign setup
 
 The landing page and guided demo now match the project's Dashboard, Documents,
@@ -450,10 +477,10 @@ References: [Gemini API keys](https://ai.google.dev/gemini-api/docs/api-key),
 These are **project-wide**, not per-user allowances. The user confirmed these
 model quotas in AI Studio on 2026-09-22; they are not universal Google limits.
 
-| Model | Confirmed Google RPM / input TPM / RPD | Warn at 80% | App stop caps |
-| --- | --- | --- | --- |
-| `gemini-3.5-flash-lite` | 15 / 250,000 / 500 | 12 / 200,000 / 400 | 13 / 225,000 / 450 |
-| `gemini-embedding-001` | 100 / 30,000 / 1,000 | 80 / 24,000 / 800 | 90 / 27,000 / 900 |
+| Model                   | Confirmed Google RPM / input TPM / RPD | Warn at 80%        | App stop caps      |
+| ----------------------- | -------------------------------------- | ------------------ | ------------------ |
+| `gemini-3.5-flash-lite` | 15 / 250,000 / 500                     | 12 / 200,000 / 400 | 13 / 225,000 / 450 |
+| `gemini-embedding-001`  | 100 / 30,000 / 1,000                   | 80 / 24,000 / 800  | 90 / 27,000 / 900  |
 
 Before deploying this change:
 

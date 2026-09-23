@@ -360,10 +360,12 @@ export function mountDocuments(
   return {
     openDocument,
     openConversation: answers.openConversation,
+    refreshConversations: answers.refresh,
     show(view: "documents" | "chat") {
       answerRoot.hidden = view === "documents";
       uploadSection.hidden = view === "chat";
       root.dataset.view = view;
+      if (view === "chat") answers.refreshLayout();
     },
     ready: Promise.all([refresh(), answers.refresh()]).then(() => {}),
     dispose() {

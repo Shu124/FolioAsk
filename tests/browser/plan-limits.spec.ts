@@ -1,4 +1,5 @@
 import { completeOnboarding } from "../fixtures/onboarding";
+import { openProjectView } from "../fixtures/navigation";
 import { test, expect, type Page } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
 
@@ -22,11 +23,7 @@ async function account(page: Page) {
   const workspace = new URL(page.url()).searchParams.get("workspace")!;
   return {
     workspace,
-    navigate: async (name: string) =>
-      page
-        .getByRole("navigation", { name: "Project navigation" })
-        .getByRole("button", { name, exact: true })
-        .click(),
+    navigate: (name: string) => openProjectView(page, name),
     upload: async () => {
       const result = await page.request.post(
         `/api/workspaces/${workspace}/documents?name=contract.pdf`,

@@ -1,3 +1,8 @@
+import {
+  openProjectView,
+  openChatHistory,
+  closeChatHistory,
+} from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
@@ -18,8 +23,11 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  const nav = page.getByRole("navigation", { name: "Project navigation" });
-  await nav.getByRole("button", { name: "Documents", exact: true }).click();
+  const nav = page.getByRole("navigation", {
+    name: "Project navigation",
+    includeHidden: true,
+  });
+  await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
   await page.getByLabel("Choose PDF").setInputFiles({
     name: "contract.pdf",
@@ -29,7 +37,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByRole("button", { name: "Close source" }).click();
-  await nav.getByRole("button", { name: "Chat", exact: true }).click();
+  await openProjectView(page, "Chat");
   await page.getByLabel("Your question").fill("When are shop drawings due?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(1);
@@ -41,7 +49,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await page.getByLabel("Your question").fill("What is the project budget?");
   await page.getByRole("button", { name: "Ask selected document" }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(1);
-  await nav.getByRole("button", { name: "Dashboard", exact: true }).click();
+  await openProjectView(page, "Dashboard");
   await page
     .getByRole("button", { name: "When are shop drawings due?", exact: true })
     .click();
@@ -117,7 +125,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await expect(
     page.getByRole("button", { name: "Ask selected document" }),
   ).toBeDisabled();
-  await page.getByText("Chat history", { exact: true }).click();
+  await openChatHistory(page);
   await page.getByLabel("Show archived conversations").check();
   expect(
     await page
@@ -130,6 +138,7 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await expect(
     page.getByLabel("Conversation", { exact: true }).locator("option"),
   ).toHaveCount(2);
+  await closeChatHistory(page);
   await page.getByRole("button", { name: "Conversation actions" }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await expect(

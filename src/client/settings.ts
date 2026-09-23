@@ -4,6 +4,7 @@ import { passwordVisibility } from "./password-field";
 import { labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
 import type { PlanUsage } from "../server/storage-limits";
+import { mountSettingsHistory } from "./settings-history";
 
 export function mountSettings(
   root: HTMLElement,
@@ -12,6 +13,7 @@ export function mountSettings(
   renamed: (name: string) => void,
   reauthenticate: (message: string) => void,
   appearance: HTMLElement,
+  conversationsChanged: () => void,
 ) {
   root.innerHTML = `<section><h3>Account</h3><p id="profile-email"></p><p id="profile-providers" class="quiet"></p><form id="profile-form"><label>Display name<input name="name" required maxlength="100"></label><button>Save name</button></form><p role="status" aria-label="Account settings status" id="settings-status"></p></section><section><h3>Project</h3><form id="rename-form"><label>Rename project<input name="name" required maxlength="100"></label><button>Save project name</button></form></section><section><h3>Plan and usage</h3><p class="badge">Controlled free pilot</p><div id="settings-usage">Loading usage…</div><p class="quiet">Public, non-sensitive, operator-approved fixtures only. No paid subscription is active.</p></section><section id="password-settings" hidden><h3>Change password</h3><p class="quiet">Changing your password signs out all FolioAsk sessions.</p><form id="password-form"><label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required maxlength="256"></label><label>New password<input type="password" name="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password<input type="password" name="confirm" autocomplete="new-password" required minlength="12" maxlength="256"></label><button>Change password</button></form></section>`;
   let disposed = false;
@@ -24,12 +26,21 @@ export function mountSettings(
   usageSection.append(planPanel);
   const planUsage = mountPlanUsage(planPanel, "all", api);
   const accountPanel = document.createElement("div");
-  accountPanel.append(accountSection, passwordSection);
+  accountPanel.append(accountSection);
+  const securityPanel = document.createElement("section");
+  securityPanel.innerHTML = `<h3>Security</h3><p class="page-description">Manage security with the provider you use to sign in.</p><p class="security-provider-note">Loading sign-in methods…</p><details class="password-security" hidden><summary>Change email password</summary></details>`;
+  const passwordDetails =
+    securityPanel.querySelector<HTMLDetailsElement>("details")!;
+  passwordDetails.append(passwordSection);
+  const historyPanel = document.createElement("section");
+  let chatHistory: ReturnType<typeof mountSettingsHistory> | undefined;
   const sections = {
     Account: accountPanel,
     Project: projectSection,
     Appearance: appearance,
     Usage: usageSection,
+    "Chat history": historyPanel,
+    Security: securityPanel,
   };
   const navigation = document.createElement("nav");
   navigation.className = "settings-navigation section-tabs";
@@ -47,12 +58,23 @@ export function mountSettings(
       status.textContent = "";
     }
     if (name === "Usage") void refreshUsage();
+    if (name === "Chat history") {
+      chatHistory ??= mountSettingsHistory(
+        historyPanel,
+        project.id,
+        api,
+        conversationsChanged,
+      );
+      void chatHistory.refresh();
+    }
   };
   const sectionIcons = {
     Account: "User",
     Project: "Folder",
     Appearance: "Palette",
     Usage: "Usage",
+    "Chat history": "Chat",
+    Security: "Lock",
   } as const;
   for (const name of Object.keys(sections) as (keyof typeof sections)[]) {
     const panel = sections[name];
@@ -176,6 +198,13 @@ export function mountSettings(
       profileForm.querySelector("button")!.disabled = false;
       root.querySelector<HTMLElement>("#password-settings")!.hidden =
         !account.providers?.includes("email");
+      passwordDetails.hidden = !account.providers?.includes("email");
+      securityPanel.querySelector(".security-provider-note")!.textContent =
+        account.providers?.includes("email")
+          ? "Your email password is managed separately from your profile. Open the option below only when you need to change it."
+          : account.providers?.includes("google")
+            ? "For Google sign-in, manage your password and two-step verification in your Google Account. FolioAsk does not have a Google password to change."
+            : "Sign-in provider details are unavailable. Please try again later before changing security settings.";
     })
     .catch((error) => {
       if (!disposed)
@@ -236,6 +265,7 @@ export function mountSettings(
     dispose() {
       disposed = true;
       planUsage.dispose();
+      chatHistory?.dispose();
       root.replaceChildren();
     },
   };

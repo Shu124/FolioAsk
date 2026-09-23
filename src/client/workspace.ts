@@ -12,6 +12,14 @@ export async function mountWorkspace(root: HTMLElement) {
   root.innerHTML = `<header class="site-header"><a class="brand" href="/">FolioAsk</a><a href="/">Back to guided demo</a></header><main class="account-page"><p class="eyebrow">YOUR RESEARCH, IN ONE PLACE</p><div role="status" id="account-status"></div><section id="signin"><h1>Sign in to your workspace</h1><p>Sign in to upload approved synthetic PDFs and inspect source-backed answers. Live AI requires operator configuration; private and sensitive files remain excluded.</p><form id="signin-form"><label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="256"></label><div class="form-actions"><button class="primary" type="submit">Sign in</button><button type="button" id="signup">Create account</button></div></form><p class="quiet">New accounts require email confirmation. Sessions expire after 24 hours; signing out revokes this session immediately.</p></section><section id="workspace-home" hidden></section></main>`;
   const status = root.querySelector<HTMLElement>("#account-status")!;
   const signin = root.querySelector<HTMLElement>("#signin")!;
+  const authShell = document.createElement("div");
+  authShell.className = "auth-shell";
+  const story = document.createElement("aside");
+  story.className = "auth-story";
+  story.innerHTML =
+    '<p class="eyebrow">LESS SEARCHING. MORE UNDERSTANDING.</p><h2>Your documents.<br>Your project.<br>One clear answer.</h2><p>A focused workspace for the documents, conversations and evidence behind your work.</p><ul><li>Organize your project documents</li><li>Ask questions in plain language</li><li>Inspect the original evidence</li></ul><small>Controlled pilot · No confidential or patient records</small>';
+  signin.before(authShell);
+  authShell.append(story, signin);
   root.classList.add("workspace-app");
   const brand = root.querySelector<HTMLElement>(".brand")!;
   brand.innerHTML =

@@ -6,6 +6,7 @@ import { icon, labelWithIcon } from "./icons";
 import { mountDashboard } from "./dashboard";
 import { mountOnboarding } from "./onboarding";
 import { mountProjectSwitcher } from "./project-switcher";
+import { responsiveDrawer } from "./responsive-drawer";
 
 type View = "Dashboard" | "Documents" | "Chat" | "Settings";
 const views: View[] = ["Dashboard", "Documents", "Chat", "Settings"];
@@ -27,16 +28,23 @@ export function mountProjects(
   const menu = document.createElement("button");
   menu.className = "mobile-navigation-toggle";
   labelWithIcon(menu, "Menu", "Toggle navigation");
-  menu.setAttribute("aria-expanded", "true");
+  menu.setAttribute("aria-expanded", "false");
   menu.setAttribute("aria-controls", "project-navigation");
   menu.title = "Toggle navigation";
-  root.querySelector(".project-sidebar")!.prepend(menu);
-  menu.onclick = () => {
-    const open = menu.getAttribute("aria-expanded") !== "true";
-    menu.setAttribute("aria-expanded", String(open));
-    root.querySelector<HTMLElement>(".project-sidebar")!.dataset.collapsed =
-      String(!open);
-  };
+  contentHeader.prepend(menu);
+  const sidebar = root.querySelector<HTMLElement>(".project-sidebar")!;
+  const railBrand = document.createElement("a");
+  railBrand.href = "/";
+  railBrand.className = "rail-brand";
+  railBrand.textContent = "F";
+  railBrand.setAttribute("aria-label", "FolioAsk home");
+  sidebar.prepend(railBrand);
+  const navigationDrawer = responsiveDrawer(
+    sidebar,
+    menu,
+    "Navigation",
+    "(max-width: 760px)",
+  );
   status.setAttribute("aria-label", "Project status");
   root.querySelector("#project-selector")!.parentElement!.remove();
   const onboarding = root.querySelector<HTMLElement>("#project-onboarding")!;
@@ -47,7 +55,7 @@ export function mountProjects(
   breadcrumb.className = "project-breadcrumb";
   breadcrumb.innerHTML = icon("Folder");
   breadcrumb.append(title);
-  contentHeader.prepend(breadcrumb);
+  menu.after(breadcrumb);
   labelWithIcon(
     root.querySelector<HTMLElement>("#project-signout")!,
     "Logout",
@@ -70,8 +78,9 @@ export function mountProjects(
   const utilities = document.createElement("div");
   utilities.className = "sidebar-utilities";
   utilities.append(root.querySelector("#project-signout")!, shortcut);
-  root.querySelector(".project-sidebar")!.append(utilities);
+  contentHeader.append(utilities);
   const disposeTheme = mountTheme(appearance, shortcut);
+  root.querySelector<HTMLButtonElement>("#project-signout")!.title = "Sign out";
   const accountSettings = document.createElement("div");
   settings.append(accountSettings);
   let settingsView: ReturnType<typeof mountSettings> | undefined;
@@ -89,7 +98,7 @@ export function mountProjects(
   onboarding.before(profilePanel);
   let profileSetup: ReturnType<typeof mountOnboarding> | undefined;
   const switcher = mountProjectSwitcher(
-    root.querySelector(".project-sidebar")!,
+    breadcrumb,
     (id) => void run(() => open(id)),
   );
   const controls = views.map((view) => {
@@ -100,6 +109,7 @@ export function mountProjects(
     return button;
   });
   function show(view: View) {
+    navigationDrawer.close();
     root.querySelector<HTMLElement>(".project-content")!.dataset.view =
       view.toLowerCase();
     if (activeView !== view) window.scrollTo({ top: 0, behavior: "instant" });
@@ -186,6 +196,10 @@ export function mountProjects(
         history.replaceState(null, "", "/app");
       },
       appearance,
+      () => {
+        if (!disposed && revision === sequence)
+          void documentView?.refreshConversations().catch(() => {});
+      },
     );
     // Commit the project URL before the chat reads its conversation selection.
     show(activeView);
@@ -279,6 +293,7 @@ export function mountProjects(
     ready,
     dispose() {
       profileSetup?.dispose();
+      navigationDrawer.dispose();
       switcher.dispose();
       disposed = true;
       disposeTheme();
