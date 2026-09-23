@@ -18,6 +18,7 @@ export function mountProjects(
   root.innerHTML = `<div class="project-shell"><aside class="project-sidebar"><p class="eyebrow">YOUR PROJECTS</p><label><span class="project-selector-label">Current project</span><select id="project-selector"></select></label><button id="new-project">New project</button><nav aria-label="Project navigation"></nav><button id="project-signout">Sign out</button></aside><div class="project-content"><p role="status" id="project-status"></p><section id="project-onboarding"><h1>Name your first project</h1><p>Give your research a home. You can add more projects later.</p><form id="project-form"><label>Project name<input name="name" required maxlength="100" placeholder="e.g. Elm Street renovation"></label><button class="primary">Create project</button></form></section><section id="project-main" hidden><h1 id="project-title"></h1><section id="project-dashboard"><h2>Recent activity</h2><p>Your project is saved to your account. Open Documents to upload an approved PDF, or Chat to continue your research.</p></section><div id="project-evidence"></div><section id="project-settings" hidden><h2>Settings</h2><p>Account and appearance controls are coming in the settings ticket.</p></section></section></div></div>`;
   const status = root.querySelector<HTMLElement>("#project-status")!;
   const addProject = root.querySelector<HTMLButtonElement>("#new-project")!;
+  addProject.hidden = true;
   labelWithIcon(addProject, "Plus", "Add project");
   const contentHeader = document.createElement("header");
   contentHeader.className = "workspace-toolbar project-topbar";
@@ -37,8 +38,9 @@ export function mountProjects(
       String(!open);
   };
   status.setAttribute("aria-label", "Project status");
-  const selector = root.querySelector<HTMLSelectElement>("#project-selector")!;
+  root.querySelector("#project-selector")!.parentElement!.remove();
   const onboarding = root.querySelector<HTMLElement>("#project-onboarding")!;
+  onboarding.hidden = true;
   const main = root.querySelector<HTMLElement>("#project-main")!;
   const title = root.querySelector<HTMLElement>("#project-title")!;
   const breadcrumb = document.createElement("div");
@@ -88,7 +90,6 @@ export function mountProjects(
   let profileSetup: ReturnType<typeof mountOnboarding> | undefined;
   const switcher = mountProjectSwitcher(
     root.querySelector(".project-sidebar")!,
-    selector,
     (id) => void run(() => open(id)),
   );
   const controls = views.map((view) => {
@@ -154,7 +155,6 @@ export function mountProjects(
     if (disposed || revision !== sequence) return;
     current = project;
     title.textContent = project.name;
-    selector.value = project.id;
     switcher.update(projects, project.id);
     onboarding.hidden = true;
     main.hidden = false;
@@ -177,8 +177,7 @@ export function mountProjects(
         title.textContent = name;
         const entry = projects.find((item) => item.id === project.id);
         if (entry) entry.name = name;
-        updateSelector();
-        selector.value = project.id;
+        updateProjectNavigation();
       },
       (message) => {
         signedOut(message);
@@ -203,19 +202,10 @@ export function mountProjects(
             : "Document service unavailable.";
     }
   }
-  function updateSelector() {
+  function updateProjectNavigation() {
     switcher.update(projects, current?.id ?? "");
-    selector.replaceChildren();
-    for (const project of projects) {
-      const option = document.createElement("option");
-      option.value = project.id;
-      option.textContent = project.name;
-      selector.append(option);
-    }
-    selector.disabled = projects.length === 0;
     nav.hidden = projects.length === 0;
   }
-  selector.onchange = () => void run(() => open(selector.value));
   root.querySelector<HTMLButtonElement>("#new-project")!.onclick = () => {
     onboarding.hidden = false;
     onboarding.querySelector("h1")!.textContent = projects.length
@@ -235,7 +225,7 @@ export function mountProjects(
         });
         if (disposed) return;
         projects.unshift(project);
-        updateSelector();
+        updateProjectNavigation();
         form.reset();
         activeView = "Dashboard";
         await open(project.id);
@@ -257,15 +247,9 @@ export function mountProjects(
       "Dashboard";
     projects = await api<Workspace[]>("/workspaces");
     if (disposed) return;
-    updateSelector();
-    if (
-      params.get("workspace") &&
-      !projects.some((project) => project.id === params.get("workspace"))
-    ) {
-      await open(params.get("workspace")!);
-      return;
-    }
+    updateProjectNavigation();
     if (!projects.length) {
+      if (params.has("workspace")) status.textContent = "Workspace not found.";
       onboarding.hidden = true;
       addProject.hidden = true;
       const profile = await api<Account>("/account");
@@ -283,7 +267,9 @@ export function mountProjects(
       }
       onboarding.hidden = false;
       addProject.hidden = false;
+      return;
     }
+    addProject.hidden = false;
     const id = params.get("workspace") ?? projects[0]?.id;
     if (id) await open(id);
   });

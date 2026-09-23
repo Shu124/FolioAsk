@@ -1,6 +1,40 @@
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
 
+test("an inaccessible project link cannot skip setup and existing project owners keep access", async ({
+  page,
+}) => {
+  await page.goto("/app?workspace=missing");
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(`legacy-${crypto.randomUUID()}@example.test`);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("local-test-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Make this workspace yours" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create project", exact: true }),
+  ).toBeHidden();
+  // Arrange a legacy account through the existing public project API, without
+  // marking the new profile flow complete. Such accounts must retain access.
+  const project = await (
+    await page.request.post("/api/workspaces", {
+      headers: { Origin: new URL(page.url()).origin },
+      data: { name: "Existing research" },
+    })
+  ).json();
+  await page.goto(`/app?workspace=${project.id}`);
+  await expect(
+    page.getByRole("heading", { name: "Existing research", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Make this workspace yours" }),
+  ).toHaveCount(0);
+});
+
 test("profile setup resumes saved preferences and project search is keyboard accessible", async ({
   page,
 }) => {
@@ -19,6 +53,10 @@ test("profile setup resumes saved preferences and project search is keyboard acc
     page.getByText("Start with source-backed research", { exact: true }),
   ).toBeVisible();
   await page.reload();
+  await expect(
+    page.getByText("Start with source-backed research", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
     "Avery",
   );

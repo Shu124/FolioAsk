@@ -77,6 +77,7 @@ export function mountOnboarding(
     void save(true);
   };
   plan.querySelector<HTMLButtonElement>(".back")!.onclick = () => step(false);
+  if (name.value && industry.value && !profile.onboardingComplete) step(true);
   return {
     dispose() {
       disposed = true;

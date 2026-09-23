@@ -3,12 +3,9 @@ import { icon } from "./icons";
 
 export function mountProjectSwitcher(
   root: HTMLElement,
-  select: HTMLSelectElement,
   change: (id: string) => void,
 ) {
-  // The native select remains the source of options, but all visible interaction
-  // uses ordinary buttons in a searchable disclosure (no simulated listbox keys).
-  select.parentElement!.hidden = true;
+  // Ordinary buttons provide keyboard and touch access without simulated listbox keys.
   const shell = document.createElement("div");
   shell.className = "project-switcher";
   shell.innerHTML = `<span class="eyebrow">CURRENT PROJECT</span><button type="button" class="project-switcher-trigger" aria-expanded="false" aria-controls="project-switcher-panel">${icon("Folder")}<span>Select project</span><span aria-hidden="true">⌄</span></button><div id="project-switcher-panel" class="project-switcher-panel" hidden><label>Find project<input type="search" placeholder="Search projects…" autocomplete="off"></label><div class="project-options"></div><p class="quiet">Create projects using Add project in the main area.</p></div>`;
