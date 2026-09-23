@@ -149,6 +149,48 @@ test("project picker stays bounded, searchable and keyboard accessible across sc
   await expect(panel).toBeHidden();
 });
 
+test("open project picker follows the header when session restoration finishes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await createWorkspace(page);
+  let releaseDocuments!: () => void;
+  const documentsGate = new Promise<void>((resolve) => {
+    releaseDocuments = resolve;
+  });
+  await page.route("**/api/workspaces/*/documents", async (route) => {
+    await documentsGate;
+    await route.continue();
+  });
+  try {
+    await page.reload();
+    await expect(
+      page.getByText("Restoring session…", { exact: true }),
+    ).toBeVisible();
+    const trigger = page.locator(".project-switcher-trigger");
+    await trigger.click();
+    const before = await trigger.boundingBox();
+    releaseDocuments();
+    await expect(
+      page.getByText("Restoring session…", { exact: true }),
+    ).toBeHidden();
+    const panel = page.getByRole("dialog", { name: "Choose project" });
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(async () => {
+        const anchor = await trigger.boundingBox();
+        const box = await panel.boundingBox();
+        return Math.abs(box!.y - anchor!.y - anchor!.height - 8);
+      })
+      .toBeLessThan(2);
+    expect((await trigger.boundingBox())!.y).toBeLessThan(before!.y);
+    await expect(page.getByLabel("Find project")).toBeFocused();
+  } finally {
+    releaseDocuments();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 test("project switcher does not move or scroll navigation on a short laptop", async ({
   page,
 }) => {

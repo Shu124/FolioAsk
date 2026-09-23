@@ -15,8 +15,11 @@ export function mountProjectSwitcher(
   const options = shell.querySelector<HTMLElement>(".project-options")!;
   let projects: Workspace[] = [],
     current = "";
+  let positionFrame = 0;
   const isOpen = () => panel.matches(":popover-open");
   function close() {
+    cancelAnimationFrame(positionFrame);
+    positionFrame = 0;
     if (isOpen()) panel.hidePopover();
     trigger.setAttribute("aria-expanded", "false");
   }
@@ -41,6 +44,14 @@ export function mountProjectSwitcher(
     panel.style.maxHeight = `${Math.max(0, Math.min(bottom - topEdge, Math.max(96, placeBelow ? below : above)))}px`;
     const height = panel.getBoundingClientRect().height;
     panel.style.top = `${Math.max(topEdge, Math.min(bottom - height, placeBelow ? rect.bottom + 8 : rect.top - height - 8))}px`;
+  }
+  // Coalesce viewport and page-layout changes before measuring the anchor.
+  function schedulePosition() {
+    if (positionFrame || !isOpen()) return;
+    positionFrame = requestAnimationFrame(() => {
+      positionFrame = 0;
+      position();
+    });
   }
   function render() {
     options.replaceChildren();
@@ -80,6 +91,7 @@ export function mountProjectSwitcher(
     trigger.setAttribute("aria-expanded", "true");
     position();
     search.focus({ preventScroll: true });
+    schedulePosition();
   };
   panel.addEventListener("toggle", () =>
     trigger.setAttribute("aria-expanded", String(isOpen())),
@@ -103,16 +115,19 @@ export function mountProjectSwitcher(
   // The top-layer picker escapes sidebar clipping; the list alone scrolls.
   const onScroll = (event: Event) => {
     if (event.target instanceof Node && panel.contains(event.target)) return;
-    position();
+    schedulePosition();
   };
-  window.addEventListener("resize", position);
+  window.addEventListener("resize", schedulePosition);
   window.addEventListener("scroll", onScroll, true);
-  window.visualViewport?.addEventListener("resize", position);
-  window.visualViewport?.addEventListener("scroll", position);
+  window.visualViewport?.addEventListener("resize", schedulePosition);
+  window.visualViewport?.addEventListener("scroll", schedulePosition);
   // Font/layout changes can move the anchor after a viewport resize event.
-  const observer = new ResizeObserver(position);
+  const observer = new ResizeObserver(schedulePosition);
   observer.observe(trigger);
   if (root.parentElement) observer.observe(root.parentElement);
+  // Session restoration removes a status banner above the workspace. That
+  // moves the toolbar without resizing it, so observe the page layout too.
+  observer.observe(document.body);
   return {
     update(items: Workspace[], id: string) {
       projects = items;
@@ -126,10 +141,10 @@ export function mountProjectSwitcher(
     dispose() {
       observer.disconnect();
       close();
-      window.removeEventListener("resize", position);
+      window.removeEventListener("resize", schedulePosition);
       window.removeEventListener("scroll", onScroll, true);
-      window.visualViewport?.removeEventListener("resize", position);
-      window.visualViewport?.removeEventListener("scroll", position);
+      window.visualViewport?.removeEventListener("resize", schedulePosition);
+      window.visualViewport?.removeEventListener("scroll", schedulePosition);
       shell.remove();
     },
   };

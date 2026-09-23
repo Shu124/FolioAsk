@@ -520,6 +520,17 @@
 .demo-sidebar .quiet {
   color: #c0c6dd;
 }
+.demo-sidebar > .eyebrow {
+  color: #c0c6dd;
+}
+.demo-sidebar .mobile-navigation-toggle {
+  color: #eceefa;
+  background: #343a55;
+  border-color: #5b6387;
+}
+.demo-sidebar .mobile-navigation-toggle:hover:not(:disabled) {
+  background: #414760;
+}
 @media (min-width: 961px) {
   .demo-grid {
     grid-template-columns: 7rem minmax(0, 1fr);
@@ -540,7 +551,10 @@
 }
 @media (max-width: 960px) {
   .demo-sidebar .rail-brand {
-    display: none;
+    display: grid;
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
   }
 }
 @media (max-width: 1100px) {

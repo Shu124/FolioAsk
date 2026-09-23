@@ -102,6 +102,20 @@ test("demo source and navigation fit desktop, tablet and narrow mobile", async (
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/#demo");
     const nav = page.getByRole("navigation", { name: "Demo navigation" });
+    const brand = page.locator(".demo-sidebar .rail-brand");
+    await expect(brand).toBeVisible();
+    if (width <= 960) {
+      const menu = page.getByRole("button", { name: "Toggle demo navigation" });
+      await expect(menu).toHaveCSS("color", "rgb(236, 238, 250)");
+      await expect(menu).toHaveCSS("background-color", "rgb(52, 58, 85)");
+      await menu.hover();
+      await expect(menu).toHaveCSS("background-color", "rgb(65, 71, 96)");
+      await menu.click();
+      await expect(nav).toBeHidden();
+      await expect(brand).toBeVisible();
+      await menu.click();
+      await expect(nav).toBeVisible();
+    }
     for (const view of ["Dashboard", "Documents", "Chat"]) {
       await nav.getByRole("button", { name: view, exact: true }).click();
       await expect(

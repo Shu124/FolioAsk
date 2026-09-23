@@ -1154,7 +1154,7 @@
     clip-path: inset(50%);
   }
   .project-sidebar[data-collapsed="true"]
-    > :not(.mobile-navigation-toggle):not(.project-switcher) {
+    > :not(.mobile-navigation-toggle):not(.project-switcher):not(.rail-brand) {
     display: none !important;
   }
   .project-topbar {
