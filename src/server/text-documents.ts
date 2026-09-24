@@ -1,8 +1,10 @@
-import { unzipSync } from "fflate";
+import { boundedOfficeArchive } from "./office-archive.ts";
 import { SaxesParser } from "saxes";
 import {
   MAX_DOCUMENT_PAGES,
   MAX_DOCUMENT_TEXT,
+  PASSAGE_CHARACTERS,
+  SECTION_CHARACTERS,
   type DocumentFormat,
 } from "../document-policy.ts";
 import type { SourcePage } from "./documents.ts";
@@ -63,9 +65,13 @@ function sections(items: TextItem[]): SourcePage[] {
     total += text.length;
     if (total > MAX_DOCUMENT_TEXT) tooLarge();
     // Short passages are also safe embedding units; references remain stable.
-    for (let offset = 0; offset < text.length; offset += 1200) {
-      const part = text.slice(offset, offset + 1200);
-      if (!page || length + part.length > 2400 || group !== item.group) {
+    for (let offset = 0; offset < text.length; offset += PASSAGE_CHARACTERS) {
+      const part = text.slice(offset, offset + PASSAGE_CHARACTERS);
+      if (
+        !page ||
+        length + part.length > SECTION_CHARACTERS ||
+        group !== item.group
+      ) {
         if (pages.length >= MAX_DOCUMENT_PAGES) tooLarge();
         page = { number: pages.length + 1, width: 1, height: 1, passages: [] };
         pages.push(page);
@@ -152,42 +158,16 @@ function officeParts(bytes: Uint8Array, format: "docx" | "xlsx") {
     invalid(
       "Use an unencrypted DOCX or XLSX file. Legacy DOC/XLS and password-protected Office files are not supported.",
     );
-  const names = new Set<string>();
-  let expanded = 0,
-    selected = 0;
-  const files = unzipSync(bytes, {
-    filter(file) {
-      if (
-        names.has(file.name) ||
-        /(^\/|\\|(^|\/)\.\.(\/|$)|[\u0000-\u001f])/.test(file.name)
-      )
-        invalid("The Office archive contains invalid or duplicate paths.");
-      names.add(file.name);
-      expanded += file.originalSize;
-      if (names.size > 2000 || expanded > 80_000_000) tooLarge();
-      if (/(vbaProject|activeX|embeddings)/i.test(file.name))
-        invalid("Macro-enabled files and embedded objects are not supported.");
-      const include =
-        file.name === "[Content_Types].xml" ||
-        (format === "docx"
-          ? file.name === "word/document.xml"
-          : /^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(
-              file.name,
-            ));
-      if (include) {
-        selected += file.originalSize;
-        if (
-          file.originalSize > 4_000_000 ||
-          file.size > 4_000_000 ||
-          selected > 8_000_000
-        )
-          tooLarge();
-        if (![0, 8].includes(file.compression))
-          invalid("The Office archive uses unsupported compression.");
-      }
-      return include;
-    },
-  });
+  const files = boundedOfficeArchive(
+    bytes,
+    (name) =>
+      name === "[Content_Types].xml" ||
+      (format === "docx"
+        ? name === "word/document.xml"
+        : /^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(
+            name,
+          )),
+  );
   const types =
     files["[Content_Types].xml"] && xml(files["[Content_Types].xml"]);
   const mainType =
@@ -236,8 +216,12 @@ function spreadsheet(bytes: Uint8Array): SourcePage[] {
     ? descendants(xml(files["xl/sharedStrings.xml"]), "si").map(textRuns)
     : [];
   const items: TextItem[] = [];
-  let extractedLength = 0;
-  for (const sheet of descendants(book, "sheet")) {
+  let extractedLength = 0,
+    rowCount = 0;
+  const sheets = descendants(book, "sheet");
+  if (sheets.length > 100) tooLarge();
+  const visited = new Set<string>();
+  for (const sheet of sheets) {
     const relation = relationships.find(
       (item) => item.attributes.Id === sheet.attributes["r:id"],
     );
@@ -254,9 +238,13 @@ function spreadsheet(bytes: Uint8Array): SourcePage[] {
       invalid();
     const path = target.pathname.slice(1);
     if (!/^xl\/worksheets\/[^/]+\.xml$/.test(path) || !files[path]) invalid();
+    if (visited.has(path))
+      invalid("Duplicate worksheet references are not supported.");
+    visited.add(path);
     const worksheet = xml(files[path]);
     if (worksheet.name !== "worksheet") invalid();
     for (const row of descendants(worksheet, "row")) {
+      if (++rowCount > 10_000) tooLarge();
       const cells = row.children
         .filter((node) => node.name === "c")
         .map((cell) => {
@@ -281,6 +269,7 @@ function spreadsheet(bytes: Uint8Array): SourcePage[] {
         })
         .filter(Boolean);
       if (!/^\d+$/.test(row.attributes.r ?? "")) invalid();
+      if (!cells.length) continue;
       items.push({
         text: cells.join(" | "),
         reference: `Row ${row.attributes.r}`,

@@ -19,6 +19,8 @@ Paid options remain **coming soon**: no checkout or private processing is enable
   DOCX indexes body paragraphs/tables only. XLSX uses saved cell values, including
   hidden sheets/rows; it does not calculate formulas or interpret charts/images.
   Check each extraction notice and the original before trusting an answer.
+  Office safety bounds also limit archive expansion, XML depth/node count,
+  worksheets (100) and aggregate worksheet rows (10,000); ZIP64 is unsupported.
 - Embeddings are created on the **first question**, in bounded durable batches.
   If shared free capacity pauses, wait for capacity and retry the same question;
   completed batches are reused. No successful-answer allowance is charged until

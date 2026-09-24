@@ -60,7 +60,8 @@ begin
   if not exists(select 1 from public.folio_documents where id=p_document and owner_id=p_owner) then
     raise exception 'Document not found';
   end if;
-  if jsonb_typeof(p_chunks) is distinct from 'array' or jsonb_array_length(p_chunks)>200 then
+  -- Matches MAX_INDEX_CHUNKS: 200k text characters plus 100 page boundaries.
+  if jsonb_typeof(p_chunks) is distinct from 'array' or jsonb_array_length(p_chunks)>300 then
     raise exception 'Invalid index checkpoint';
   end if;
   insert into public.folio_embeddings(document_id,owner_id,index_key,data)

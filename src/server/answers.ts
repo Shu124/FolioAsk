@@ -1,7 +1,12 @@
 import type { DocumentRecord, DocumentServices, Passage } from "./documents.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { conversationRoute, type ConversationStore } from "./conversations.ts";
-import { eligibleForFree } from "../document-policy.ts";
+import {
+  eligibleForFree,
+  PASSAGE_CHARACTERS,
+  SECTION_CHARACTERS,
+  MAX_INDEX_CHUNKS,
+} from "../document-policy.ts";
 
 export interface Evidence {
   id: string;
@@ -81,11 +86,15 @@ function chunkDocument(
   for (const page of document.pages) {
     let current: Omit<IndexedChunk, "vector"> = { text: "", evidence: [] };
     for (const passage of page.passages) {
-      for (const [partIndex, text] of (
-        passage.text.match(/[\s\S]{1,1200}/gu) ?? []
-      ).entries()) {
+      for (
+        let offset = 0;
+        offset < passage.text.length;
+        offset += PASSAGE_CHARACTERS
+      ) {
+        const partIndex = offset / PASSAGE_CHARACTERS;
+        const text = passage.text.slice(offset, offset + PASSAGE_CHARACTERS);
         if (
-          current.text.length + text.length > 2400 &&
+          current.text.length + text.length > SECTION_CHARACTERS &&
           current.evidence.length
         ) {
           chunks.push(current);
@@ -105,7 +114,7 @@ function chunkDocument(
     }
     if (current.evidence.length) chunks.push(current);
   }
-  if (chunks.length > 200)
+  if (chunks.length > MAX_INDEX_CHUNKS)
     throw new HttpError(
       422,
       "This document is too dense for the controlled pilot.",

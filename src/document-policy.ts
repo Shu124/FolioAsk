@@ -17,6 +17,11 @@ export const DOCUMENT_ACCEPT = Object.keys(DOCUMENT_FORMATS)
   .join(",");
 export const MAX_DOCUMENT_PAGES = 100;
 export const MAX_DOCUMENT_TEXT = 200_000;
+export const PASSAGE_CHARACTERS = 1200;
+export const SECTION_CHARACTERS = 2400;
+// At most 200k text characters, split into <=1200-character fragments,
+// plus at most 100 page-end fragments. Keep SQL checkpoint bounds in sync.
+export const MAX_INDEX_CHUNKS = 300;
 
 export function documentFormat(name: string): DocumentFormat | undefined {
   const extension = name.toLowerCase().split(".").at(-1);

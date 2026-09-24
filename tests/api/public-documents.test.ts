@@ -7,6 +7,7 @@ import { controlledProvider } from "../fixtures/provider.ts";
 import { officeFixture } from "../fixtures/office.ts";
 import { HttpError } from "../../src/server/http.ts";
 import type { ModelProvider } from "../../src/server/answers.ts";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 async function setup(provider: ModelProvider = controlledProvider) {
   const store = new SqliteStore(":memory:");
@@ -326,6 +327,101 @@ test("30 MB per file is admitted but fills the unchanged account storage cap", a
     assert.equal(usage.storageRemainingBytes, 0);
     assert.equal((await upload(await samplePdf())).status, 429);
     assert.equal((await upload(new Uint8Array(30_000_001))).status, 413);
+  } finally {
+    store.close();
+  }
+});
+
+test("dense PDFs within the supported page/text envelope can finish indexing", async () => {
+  const { store, upload, request, workspace } = await setup();
+  try {
+    const pdf = await PDFDocument.create();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    for (let i = 0; i < 100; i++) {
+      const page = pdf.addPage([612, 792]);
+      if (i < 51)
+        for (let line = 0; line < 3; line++)
+          page.drawText("x".repeat(1200), {
+            font,
+            size: 0.5,
+            x: 10,
+            y: 700 - line * 20,
+          });
+      else page.drawText("x", { font, size: 12 });
+    }
+    const response = await upload(await pdf.save(), "dense.pdf");
+    assert.equal(response.status, 201, await response.clone().text());
+    const document = await response.json();
+    const answer = await request(
+      `/workspaces/${workspace.id}/answers`,
+      "POST",
+      {
+        documentIds: [document.id],
+        question: "What does this say?",
+        requestKey: crypto.randomUUID(),
+      },
+    );
+    assert.equal(answer.status, 201, await answer.clone().text());
+    const index = await store.getIndex(
+      document.id,
+      document.ownerId,
+      `${controlledProvider.indexKey}:bounded-v2`,
+    );
+    assert.ok(index && index.length > 200 && index.length <= 300);
+  } finally {
+    store.close();
+  }
+});
+
+test("Office work and actual ZIP expansion are bounded even with misleading metadata", async () => {
+  const { store, upload, request } = await setup();
+  try {
+    const duplicate = officeFixture("xlsx", {
+      "xl/workbook.xml":
+        '<workbook xmlns:r="urn:test"><sheets><sheet name="First" r:id="rId1"/><sheet name="Duplicate" r:id="rId1"/></sheets></workbook>',
+    });
+    assert.equal((await upload(duplicate, "duplicate.xlsx")).status, 422);
+    const emptyRows = officeFixture("xlsx", {
+      "xl/worksheets/sheet1.xml": `<worksheet>${Array.from({ length: 10_001 }, (_, i) => `<row r="${i + 1}"/>`).join("")}</worksheet>`,
+    });
+    assert.equal((await upload(emptyRows, "empty-rows.xlsx")).status, 413);
+    const normalXml =
+      '<w:document xmlns:w="urn:test"><w:body><w:p><w:r><w:t>Public text</w:t></w:r></w:p></w:body></w:document>';
+    const misleading = officeFixture("docx", {
+      "word/document.xml": normalXml + " ".repeat(4_000_001),
+    });
+    const corruptCrc = officeFixture("docx");
+    // Tamper BOTH directory and local headers so validation must examine actual
+    // inflation / CRC, rather than relying on agreement between the headers.
+    for (const [bytes, field] of [
+      [misleading, "size"],
+      [corruptCrc, "crc"],
+    ] as const) {
+      const view = new DataView(
+        bytes.buffer,
+        bytes.byteOffset,
+        bytes.byteLength,
+      );
+      for (let offset = 0; offset < bytes.length - 46; offset++) {
+        if (view.getUint32(offset, true) !== 0x02014b50) continue;
+        const length = view.getUint16(offset + 28, true);
+        const name = new TextDecoder().decode(
+          bytes.subarray(offset + 46, offset + 46 + length),
+        );
+        if (name !== "word/document.xml") continue;
+        const local = view.getUint32(offset + 42, true);
+        if (field === "size") {
+          view.setUint32(offset + 24, normalXml.length, true);
+          view.setUint32(local + 22, normalXml.length, true);
+        } else {
+          const invalidCrc = (view.getUint32(offset + 16, true) ^ 1) >>> 0;
+          view.setUint32(offset + 16, invalidCrc, true);
+          view.setUint32(local + 14, invalidCrc, true);
+        }
+      }
+      assert.equal((await upload(bytes, `${field}.docx`)).status, 422);
+    }
+    assert.equal((await (await request("/usage")).json()).uploads, 0);
   } finally {
     store.close();
   }

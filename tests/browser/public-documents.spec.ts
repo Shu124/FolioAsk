@@ -59,6 +59,13 @@ test("public upload consent, private warning and safe text citations on desktop 
   await expect(submit).toBeDisabled();
   await confirmPublicUpload(page);
   await page.emulateMedia({ colorScheme: "dark" });
+  await expect
+    .poll(() =>
+      page
+        .locator(".public-upload-consent")
+        .evaluate((node) => getComputedStyle(node).flexDirection),
+    )
+    .toBe("row");
   await page.screenshot({
     path: test.info().outputPath("public-upload-dark.png"),
     fullPage: true,

@@ -203,7 +203,7 @@ test("PostgreSQL migrations enforce storage reservations, budgets and private RP
     );
     await assert.rejects(saveProgress(bob.id, []), /Document not found/);
     await assert.rejects(
-      saveProgress(alice.id, Array(201).fill({})),
+      saveProgress(alice.id, Array(301).fill({})),
       /Invalid index checkpoint/,
     );
     await db.exec("set role anon");
