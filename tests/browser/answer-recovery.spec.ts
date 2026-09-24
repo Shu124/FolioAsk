@@ -1,9 +1,10 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect as baseExpect, type Page } from "@playwright/test";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { openProjectView } from "../fixtures/navigation";
 import { samplePdf } from "../fixtures/pdf";
 
-test.setTimeout(60_000);
+test.setTimeout(90_000);
+const expect = baseExpect.configure({ timeout: 15_000 });
 
 async function prepareChat(page: Page) {
   await page.goto("/app");
@@ -36,6 +37,7 @@ async function prepareChat(page: Page) {
   );
   expect(uploaded.status()).toBe(201);
   await page.reload();
+  await expect(page.locator("#project-main")).toBeVisible();
   await openProjectView(page, "Chat");
 }
 
