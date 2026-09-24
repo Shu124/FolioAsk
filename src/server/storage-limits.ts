@@ -3,7 +3,7 @@ import type { DocumentRecord, Usage } from "./documents.ts";
 export const FREE_LIMITS = {
   uploads: 3,
   answers: 20,
-  fileBytes: 10_000_000,
+  fileBytes: 30_000_000,
   storageBytes: 30_000_000,
 } as const;
 

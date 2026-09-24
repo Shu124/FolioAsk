@@ -1,3 +1,4 @@
+import { confirmPublicUpload } from "../fixtures/public-upload";
 import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
@@ -26,14 +27,17 @@ test("document table searches, trashes and restores without resetting allowance"
     includeHidden: true,
   });
   await openProjectView(page, "Documents");
-  await expect(page.getByLabel("Choose PDF")).toBeHidden();
+  await expect(page.getByLabel("Choose document")).toBeHidden();
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles({
+  await page.getByLabel("Choose document").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   });
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByRole("button", { name: "Close source" }).click();
   await expect(

@@ -1,5 +1,31 @@
 # FolioAsk MVP: document questions with verifiable sources
 
+## Current pilot amendment — public real documents (#45, 2026-09-24)
+
+This owner-approved slice supersedes the original PDF-only/synthetic admission
+and smaller free-file limits below, not the future MVP roadmap or release gates.
+
+- Allow declared public, non-sensitive PDF, DOCX, XLSX, CSV, TXT and Markdown.
+  Require a per-file privacy selection and affirmative acknowledgement. Explicitly
+  disclose free-provider data use; acknowledgement is not automatic classification.
+- Block declared private/confidential/unsure files before storage and AI calls.
+  Show an honest paid-options/coming-soon explanation. No billing, paid provider,
+  sensitive/regulated-data permission or compliance claim is introduced.
+- Per file: 30,000,000 bytes, PDF up to 100 pages, 200,000 extracted characters.
+  Office/text: up to 100 extracted sections. Retain 3 lifetime uploads, 20 lifetime
+  answers and 30,000,000 total account bytes. Trash does not free storage.
+- Preserve PDF page evidence. Other formats use truthful section/paragraph/row
+  references and escaped extracted-text previews with authenticated originals.
+  Explain incomplete extraction: no OCR, images, legacy/macro Office, PowerPoint,
+  embedded objects or password-protected files; no spreadsheet recalculation.
+- Index on first question using bounded resumable batches and existing free quota
+  accounting. Retry resumes saved progress; no automatic paid fallback or quota reset.
+- Test through API/browser boundaries, real local workerd and PostgreSQL-compatible
+  migrations. Hosted large-file CPU/memory performance and real model accuracy
+  remain operator checks before launch. This is private operator testing, not launch.
+
+Implementation tracker: [issue #45](https://github.com/Shu124/FolioAsk/issues/45).
+
 ## Problem Statement
 
 US users in construction, finance, and healthcare need to find and compare
@@ -110,15 +136,15 @@ verify, not attributes established by these confirmations.
 - Professional recommendations and approvals are excluded.
 - Free users consume free model quota. Paid users fund paid processing through subscription revenue; API usage still has a cost.
 
-| Allowance | Free trial | Paid plan |
-| --- | --- | --- |
-| Price | Free | USD 29/month |
-| Successful uploads | Three total per account, without renewal | Limited by processed-page and storage allowances |
-| Newly processed pages | At most 20 pages per uploaded file | 500 per subscription month |
-| Successful answers | 20 total per account, without renewal | 500 per subscription month |
-| Individual file | At most 20 pages and 10 MB | At most 100 pages and 25 MB |
-| Stored content | Bounded by the three-upload allowance and file limits | 1 GB total |
-| Model path | Free API quota | Paid API, including embeddings |
+| Allowance             | Free trial                                            | Paid plan                                        |
+| --------------------- | ----------------------------------------------------- | ------------------------------------------------ |
+| Price                 | Free                                                  | USD 29/month                                     |
+| Successful uploads    | Three total per account, without renewal              | Limited by processed-page and storage allowances |
+| Newly processed pages | At most 20 pages per uploaded file                    | 500 per subscription month                       |
+| Successful answers    | 20 total per account, without renewal                 | 500 per subscription month                       |
+| Individual file       | At most 20 pages and 10 MB                            | At most 100 pages and 25 MB                      |
+| Stored content        | Bounded by the three-upload allowance and file limits | 1 GB total                                       |
+| Model path            | Free API quota                                        | Paid API, including embeddings                   |
 
 - Each JPG or PNG counts as one page.
 - Failed uploads and failed answers do not consume their corresponding allowance.
@@ -157,10 +183,10 @@ verify, not attributes established by these confirmations.
 
 ### Content lifecycle
 
-| Account state | Content policy |
-| --- | --- |
-| Free | Delete documents and chats after 30 days of inactivity |
-| Active paid | Retain until the customer deletes content |
+| Account state          | Content policy                                           |
+| ---------------------- | -------------------------------------------------------- |
+| Free                   | Delete documents and chats after 30 days of inactivity   |
+| Active paid            | Retain until the customer deletes content                |
 | Paid subscription ends | Allow 30 days of read/export access, then delete content |
 
 - Customer-initiated deletion includes original files, extracted text, embeddings, and associated conversations.
@@ -190,18 +216,18 @@ not prescribed by this specification.
 
 ### Stack candidates from discovery
 
-| Responsibility | Candidate, subject to verification |
-| --- | --- |
-| Website/backend | Cloudflare Pages and Workers |
-| Private original-file storage | Cloudflare R2 |
-| Authentication, metadata, extracted text, vector search | Supabase and pgvector |
-| PDF extraction/viewing | PDF.js |
-| Printed-text OCR | Browser-based Tesseract.js initially |
-| Document answers | Gemini 3.5 Flash-Lite; user-approved 2026-09-22 after a successful synthetic answer/citation smoke check (not a full accuracy evaluation) |
-| Text embeddings | Gemini Embedding 001 |
-| Payments | Stripe, conditional on merchant approval and supported billing |
-| Traffic measurement | Google Analytics |
-| Search visibility monitoring | Google Search Console |
+| Responsibility                                          | Candidate, subject to verification                                                                                                        |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Website/backend                                         | Cloudflare Pages and Workers                                                                                                              |
+| Private original-file storage                           | Cloudflare R2                                                                                                                             |
+| Authentication, metadata, extracted text, vector search | Supabase and pgvector                                                                                                                     |
+| PDF extraction/viewing                                  | PDF.js                                                                                                                                    |
+| Printed-text OCR                                        | Browser-based Tesseract.js initially                                                                                                      |
+| Document answers                                        | Gemini 3.5 Flash-Lite; user-approved 2026-09-22 after a successful synthetic answer/citation smoke check (not a full accuracy evaluation) |
+| Text embeddings                                         | Gemini Embedding 001                                                                                                                      |
+| Payments                                                | Stripe, conditional on merchant approval and supported billing                                                                            |
+| Traffic measurement                                     | Google Analytics                                                                                                                          |
+| Search visibility monitoring                            | Google Search Console                                                                                                                     |
 
 Recheck availability, quotas, prices, data terms, and integration suitability
 when implementing. These candidates are not proof that the entire stack can

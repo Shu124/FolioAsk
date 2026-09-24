@@ -353,8 +353,8 @@ test("duplicate and concurrent submissions cannot exceed three lifetime successe
 });
 
 test("page, size, validity and eligibility boundaries preserve failed upload allowance", async () => {
-  const valid = await samplePdf(20);
-  const long = await samplePdf(21);
+  const valid = await samplePdf(100);
+  const long = await samplePdf(101);
   const malformed = new TextEncoder().encode("%PDF-1.7 malformed");
   const changed = await samplePdf(1, "Unreviewed change");
   const { store, request, alice, upload } = await setup([
@@ -366,7 +366,7 @@ test("page, size, validity and eligibility boundaries preserve failed upload all
     assert.equal((await upload(long)).status, 413);
     assert.equal((await upload(malformed)).status, 422);
     assert.equal((await upload(changed)).status, 403);
-    const oversized = new Uint8Array(10_000_001);
+    const oversized = new Uint8Array(30_000_001);
     oversized.set(valid);
     assert.equal((await upload(oversized)).status, 413);
     assert.equal(
@@ -377,7 +377,7 @@ test("page, size, validity and eligibility boundaries preserve failed upload all
     assert.equal(
       (await (await request("/usage", "GET", undefined, alice)).json())
         .processedPages,
-      20,
+      100,
     );
   } finally {
     store.close();

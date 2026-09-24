@@ -217,7 +217,7 @@ export function mountAnswers(
           labelWithIcon(
             link,
             "Source",
-            `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`,
+            `Source · ${citation.sourceLabel ?? `page ${citation.page}`}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`,
           );
           link.onclick = () => {
             void onCitation(citation).catch(() => {

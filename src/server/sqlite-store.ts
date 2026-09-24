@@ -365,7 +365,7 @@ export class SqliteStore
   ) {
     this.db
       .prepare(
-        "INSERT INTO embeddings VALUES (?,?,?,?) ON CONFLICT(document_id,index_key) DO UPDATE SET data=excluded.data WHERE embeddings.owner_id=excluded.owner_id",
+        "INSERT INTO embeddings VALUES (?,?,?,?) ON CONFLICT(document_id,index_key) DO UPDATE SET data=excluded.data WHERE embeddings.owner_id=excluded.owner_id AND json_array_length(excluded.data)>json_array_length(embeddings.data)",
       )
       .run(documentId, ownerId, indexKey, JSON.stringify(chunks));
   }

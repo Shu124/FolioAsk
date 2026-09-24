@@ -106,7 +106,7 @@ export class SqliteStorageGuard {
         document.bytes <= 0 ||
         document.bytes > FREE_LIMITS.fileBytes
       )
-        throw new HttpError(413, "Free files must be 10 MB or smaller.");
+        throw new HttpError(413, "Free files must be 30 MB or smaller.");
       if (
         Number(usage?.storedBytes ?? 0) +
           snapshot.reservedBytes +

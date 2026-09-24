@@ -7,7 +7,7 @@ export function mountDocumentTable(
   preview: (id: string) => void,
   changeTrash: (document: DocumentRecord, trashed: boolean) => Promise<void>,
 ) {
-  root.innerHTML = `<div class="table-tools"><div class="section-tabs" aria-label="Document views"><button aria-pressed="true">Active</button><button aria-pressed="false">Trash</button></div><label>Search documents<input type="search"></label><label>Sort documents<select><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label></div><p class="quiet">Trash keeps your files and saved citations. Restore at any time. Lifetime upload limits do not reset.</p><p role="status" class="table-status"></p><div class="table-scroll" tabindex="0" aria-label="Scrollable document table"><table aria-label="Project documents"><thead><tr><th scope="col">Name</th><th scope="col">Uploaded</th><th scope="col">Pages</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody></tbody></table></div>`;
+  root.innerHTML = `<div class="table-tools"><div class="section-tabs" aria-label="Document views"><button aria-pressed="true">Active</button><button aria-pressed="false">Trash</button></div><label>Search documents<input type="search"></label><label>Sort documents<select><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label></div><p class="quiet">Trash keeps your files and saved citations. Restore at any time. Lifetime upload limits do not reset.</p><p role="status" class="table-status"></p><div class="table-scroll" tabindex="0" aria-label="Scrollable document table"><table aria-label="Project documents"><thead><tr><th scope="col">Name</th><th scope="col">Uploaded</th><th scope="col">Pages / sections</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody></tbody></table></div>`;
   const search = root.querySelector<HTMLInputElement>("input")!;
   const sort = root.querySelector<HTMLSelectElement>("select")!;
   const body = root.querySelector("tbody")!;
@@ -46,7 +46,7 @@ export function mountDocumentTable(
       row.insertCell().textContent = new Date(
         document.createdAt,
       ).toLocaleString();
-      row.insertCell().textContent = String(document.pages.length);
+      row.insertCell().textContent = `${document.pages.length}${document.format && document.format !== "pdf" ? " sections" : ""}`;
       const badge = window.document.createElement("span");
       badge.className = `status-pill ${trash ? "" : "status-ready"}`;
       labelWithIcon(

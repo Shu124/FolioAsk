@@ -1,3 +1,4 @@
+import { confirmPublicUpload } from "../fixtures/public-upload";
 import {
   openProjectView,
   openChatHistory,
@@ -32,12 +33,15 @@ test("separate conversations reopen from dashboard with their own saved answers"
   });
   await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles({
+  await page.getByLabel("Choose document").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   });
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByRole("button", { name: "Close source" }).click();
   await openProjectView(page, "Chat");

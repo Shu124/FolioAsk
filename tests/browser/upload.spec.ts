@@ -1,3 +1,4 @@
+import { confirmPublicUpload } from "../fixtures/public-upload";
 import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
@@ -19,12 +20,15 @@ test("upload an approved PDF and inspect rendered original and extracted page", 
   await page.getByRole("button", { name: "Create project" }).click();
   await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles({
+  await page.getByLabel("Choose document").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   });
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
   });

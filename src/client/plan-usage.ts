@@ -20,12 +20,18 @@ export function mountPlanUsage(
   const dialog = document.createElement("dialog");
   dialog.className = "upgrade-dialog";
   dialog.setAttribute("aria-label", "Upgrade your plan");
-  dialog.innerHTML = `<header><h2>Upgrade your plan</h2><button type="button" autofocus>Close upgrade</button></header><p class="badge">Paid plans are coming soon</p><p>Need more capacity? Higher storage and usage allowances are planned, but pricing and checkout are not available yet.</p><section><h3>Your current free pilot</h3><p>3 lifetime uploads · 30 MB storage · 20 lifetime AI answers</p><p class="quiet">10 MB per PDF. Approved synthetic documents only. Your saved documents and answers remain available after reaching a limit.</p></section><p>No payment will be taken. Clicking Upgrade does not change your plan or unlock additional storage.</p><button type="button" disabled>Checkout not available yet</button>`;
+  dialog.innerHTML = `<header><h2>Upgrade your plan</h2><button type="button" autofocus>Close upgrade</button></header><p class="badge">Paid plans are coming soon</p><p>Need private-document processing or more capacity? Paid processing, pricing and checkout are not available yet. Private, confidential, personal and patient data cannot be uploaded or sent to the free AI service. A paid plan alone will not establish healthcare or other regulatory compliance.</p><section><h3>Your current free pilot</h3><p>3 lifetime uploads · 30 MB storage · 20 lifetime AI answers</p><p class="quiet">30 MB per file, within your remaining storage. Public, non-sensitive documents only. A single 30 MB file fills your free storage. Saved documents and answers remain available after reaching a limit.</p></section><p>No payment will be taken. Clicking Upgrade does not change your plan or unlock additional storage or private processing.</p><button type="button" disabled>Checkout not available yet</button>`;
   const close = dialog.querySelector<HTMLButtonElement>("header button")!;
   labelWithIcon(close, "Close", "Close upgrade");
   close.onclick = () => dialog.close();
   root.append(dialog);
-  upgrade.onclick = () => dialog.showModal();
+  let returnFocus: HTMLElement = upgrade;
+  function showUpgrade() {
+    if (document.activeElement instanceof HTMLElement)
+      returnFocus = document.activeElement;
+    dialog.showModal();
+  }
+  upgrade.onclick = showUpgrade;
   dialog.addEventListener("keydown", (event) => {
     // Close is the only enabled control while checkout is unavailable.
     if (event.key === "Tab") {
@@ -34,9 +40,10 @@ export function mountPlanUsage(
     }
   });
   dialog.addEventListener("close", () => {
-    if (upgrade.isConnected) upgrade.focus();
+    if (returnFocus.isConnected) returnFocus.focus();
   });
   return {
+    showUpgrade,
     update(usage: PlanUsage) {
       void aiCapacity?.refresh();
       const used = usage.storedBytes + usage.reservedBytes;

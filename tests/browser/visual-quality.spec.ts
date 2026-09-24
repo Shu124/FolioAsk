@@ -1,3 +1,4 @@
+import { confirmPublicUpload } from "../fixtures/public-upload";
 import { openProjectView, openNavigation } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
@@ -122,12 +123,15 @@ test("readable product UI across populated screens and themes", async ({
   });
   await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles({
+  await page.getByLabel("Choose document").setInputFiles({
     name: "Construction agreement.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   });
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible();
   await page.getByRole("button", { name: "Close source", exact: true }).click();
   await expect(page.locator("#upload-status")).toContainText(

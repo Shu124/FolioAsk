@@ -39,7 +39,7 @@ test("project creation stays in the body and Chat has no upload panel", async ({
   await openProjectView(page, "Chat");
   await expect(chat).toHaveAttribute("aria-current", "page");
   await expect(page.getByLabel("Your question")).toBeVisible();
-  await expect(page.getByLabel("Choose PDF")).toBeHidden();
+  await expect(page.getByLabel("Choose document")).toBeHidden();
   await expect(chat.locator("svg")).toHaveCount(1);
   if (page.viewportSize()!.width < 761) {
     await expect(chat).toBeHidden();

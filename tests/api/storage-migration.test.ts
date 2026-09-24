@@ -12,7 +12,7 @@ test("PostgreSQL migrations enforce storage reservations, budgets and private RP
     );
     const migrations = new URL("../../supabase/migrations/", import.meta.url);
     for (const file of (await readdir(migrations))
-      .filter((name) => name.endsWith(".sql") && !name.startsWith("006"))
+      .filter((name) => name.endsWith(".sql") && !/^(006|009)/.test(name))
       .sort())
       await db.exec(await readFile(new URL(file, migrations), "utf8"));
     async function owner() {
@@ -78,6 +78,12 @@ test("PostgreSQL migrations enforce storage reservations, budgets and private RP
     );
     await db.exec(
       await readFile(new URL("006_storage_safeguards.sql", migrations), "utf8"),
+    );
+    await db.exec(
+      await readFile(
+        new URL("009_real_document_uploads.sql", migrations),
+        "utf8",
+      ),
     );
     assert.equal(
       (
@@ -154,6 +160,63 @@ test("PostgreSQL migrations enforce storage reservations, budgets and private RP
     );
 
     const carol = await owner();
+    const largeOwner = await owner();
+    const largeFile = document(largeOwner, 30_000_000);
+    assert.equal(
+      (await uploadRpc("folio_reserve_upload", largeFile)).status,
+      undefined,
+    );
+    assert.equal(
+      (await uploadRpc("folio_reserve_upload", document(largeOwner, 1))).code,
+      "FREE_STORAGE_LIMIT",
+    );
+    await db.query("select public.folio_release_upload($1,$2)", [
+      largeFile.id,
+      largeOwner.id,
+    ]);
+    assert.equal(
+      (
+        await uploadRpc(
+          "folio_reserve_upload",
+          document(largeOwner, 30_000_001),
+        )
+      ).status,
+      413,
+    );
+    const saveProgress = (ownerId: string, chunks: unknown[]) =>
+      db.query("select public.folio_save_index_progress($1,$2,$3,$4::jsonb)", [
+        legacy.id,
+        ownerId,
+        "test-index",
+        JSON.stringify(chunks),
+      ]);
+    await saveProgress(alice.id, [{ text: "one" }, { text: "two" }]);
+    await saveProgress(alice.id, [{ text: "one" }]);
+    const checkpoint = await db.query<{ data: unknown[] }>(
+      "select data from public.folio_embeddings where document_id=$1",
+      [legacy.id],
+    );
+    assert.equal(
+      checkpoint.rows[0].data.length,
+      2,
+      "concurrent shorter checkpoint cannot replace progress",
+    );
+    await assert.rejects(saveProgress(bob.id, []), /Document not found/);
+    await assert.rejects(
+      saveProgress(alice.id, Array(201).fill({})),
+      /Invalid index checkpoint/,
+    );
+    await db.exec("set role anon");
+    await assert.rejects(saveProgress(alice.id, []), /permission denied/);
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(saveProgress(alice.id, []), /permission denied/);
+    await db.exec("reset role; set role service_role");
+    await saveProgress(alice.id, [
+      { text: "one" },
+      { text: "two" },
+      { text: "three" },
+    ]);
+    await db.exec("reset role");
     await db.query(
       "insert into public.folio_usage(owner_id,stored_bytes) values ($1,29000000)",
       [carol.id],

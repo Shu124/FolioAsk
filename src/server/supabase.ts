@@ -241,17 +241,12 @@ export function supabaseAdapters(config: SupabaseConfig): {
         return rows[0]?.data as IndexedChunk[] | undefined;
       },
       async putIndex(documentId, ownerId, indexKey, chunks) {
-        await call(
-          "/rest/v1/folio_embeddings?on_conflict=document_id,index_key",
-          "POST",
-          {
-            document_id: documentId,
-            owner_id: ownerId,
-            index_key: indexKey,
-            data: chunks,
-          },
-          { Prefer: "resolution=merge-duplicates,return=representation" },
-        );
+        await call("/rest/v1/rpc/folio_save_index_progress", "POST", {
+          p_document: documentId,
+          p_owner: ownerId,
+          p_index_key: indexKey,
+          p_chunks: chunks,
+        });
       },
       async commitAnswer(answer) {
         const result = await call("/rest/v1/rpc/folio_commit_answer", "POST", {

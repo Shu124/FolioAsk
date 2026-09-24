@@ -1,5 +1,55 @@
 # FolioAsk
 
+## Public real-document testing (#45)
+
+The free pilot now accepts **public, non-sensitive** PDF, DOCX, XLSX, CSV, TXT and
+Markdown files. Select a privacy category and confirm the file contains no personal,
+confidential or sensitive information. This declaration is not a detector or proof
+of eligibility. Declared private/unsure files are blocked before storage or AI use.
+Free Gemini can use submitted content to improve its products; review its
+[unpaid-service terms](https://ai.google.dev/gemini-api/terms#unpaid-services).
+Paid options remain **coming soon**: no checkout or private processing is enabled.
+
+- Maximum **30,000,000 bytes per file**, with **30,000,000 total bytes per account**.
+  A full-size file fills the account. Trash still counts; 3 lifetime uploads and
+  20 lifetime answers remain unchanged and are shared across projects.
+- PDF: up to 100 pages with selectable text. Extracted text is limited to 200,000
+  characters. Office/text files have up to 100 extracted sections, not print pages.
+- No OCR, images, DOC/XLS, macro-enabled Office, PPTX or password-protected files.
+  DOCX indexes body paragraphs/tables only. XLSX uses saved cell values, including
+  hidden sheets/rows; it does not calculate formulas or interpret charts/images.
+  Check each extraction notice and the original before trusting an answer.
+- Embeddings are created on the **first question**, in bounded durable batches.
+  If shared free capacity pauses, wait for capacity and retry the same question;
+  completed batches are reused. No successful-answer allowance is charged until
+  the answer is saved. Google calls already attempted still count toward its quota.
+- File size is an admission limit, **not a promise that every 30 MB file will run
+  on Cloudflare's free CPU/memory budget**. Start small, then test a larger public
+  document on the deployed site. Local runtime tests do not certify hosted limits.
+
+### Deploy this change
+
+1. In Supabase → FolioAsk → SQL Editor → New query, run the complete
+   [`009_real_document_uploads.sql`](supabase/migrations/009_real_document_uploads.sql)
+   once, after migrations 001–008. It raises the per-file reservation limit and adds
+   an owner-checked, service-role-only indexing checkpoint RPC. It does not raise
+   account/global budgets, reset usage, delete data, or create new tables.
+2. Redeploy the latest `feature/folioask-mvp` commit in Cloudflare Pages using
+   `npm run build`, output `dist`. **No new keys or environment variables.** Keep the
+   existing Supabase secrets, private `ORIGINALS` R2 binding, and metered Gemini setup.
+3. In Documents → Add document, choose a small public file, select **Public and
+   non-sensitive**, then check the confirmation and upload. Repeat the confirmation
+   when selecting another file. `APPROVED_PUBLIC_HASHES` is now legacy-fixture
+   compatibility only; new acknowledged public uploads do not need a hash added.
+4. Inspect extracted text, ask a factual question, and open its citation. Verify
+   TXT/Office section references and PDF pages. Then test a larger public PDF and
+   monitor runtime errors; do not upload a real patient or confidential record.
+5. Check private/unsure blocks, quota accounting, and isolation with two test
+   accounts. Testing uses lifetime allowance; this change does not reset accounts.
+
+All accounts still use the free model path. Existing documents and citations stay
+available; the new index version re-embeds eligible documents once when first asked.
+
 ## Design B: responsive workspace (#43)
 
 Design B is the production interface, not the throwaway `/ux-options` mockup.
@@ -21,8 +71,8 @@ other projects and lifetime allowances remain unchanged. Email-enabled accounts
 can explicitly open Change email password under Security; Google-only accounts
 manage their credentials through Google.
 
-This release adds **no new SQL migration, environment variable, API key or paid
-service**. Existing project, conversation and storage setup still applies. Deploy
+Design B itself adds **no new SQL migration, environment variable, API key or paid
+service**. The newer document change above requires migration 009. Deploy
 the latest `feature/folioask-mvp` commit using the existing Cloudflare build, then
 refresh `/app`. Check login, project switching, Documents, Chat and Settings in both
 themes. On a real phone, also check typing with its keyboard open, rotation, drawer
@@ -92,7 +142,7 @@ supported document content with clickable citations.
 
 ## Project status
 
-The guided demo, owned workspaces, controlled text-PDF upload/preview, and
+The guided demo, owned workspaces, public PDF/Office/text upload/preview, and
 single-document Q&A with citations are implemented. Q&A is verified with simulated
 providers only; the real Gemini check is pending credentials. Subscriptions,
 scans/OCR, and the remaining release features are not implemented yet. Regulatory
@@ -248,23 +298,23 @@ Browser tests enable it automatically. Production never falls back to fixture au
 Local API tests use temporary SQLite databases and controlled identity responses;
 they do not verify your Supabase project settings or replace deployed isolation tests.
 
-## Set up text-PDF originals in Cloudflare R2
+## Set up document originals in Cloudflare R2
 
 1. Complete Supabase setup, then run `supabase/migrations/002_documents.sql` in SQL
    Editor. The SQL transaction serializes successful upload accounting across API
    instances; do not replace it with browser-side counters. Before deploying the
    current code, apply all remaining migrations in order through
-   `006_storage_safeguards.sql` (see the storage safeguards section below).
+   `009_real_document_uploads.sql` (see the rollout instructions above).
 2. Enable R2 in your Cloudflare dashboard and create a private bucket, for example
    `folioask-originals-dev`. Review account billing requirements before activation.
    Keep public access and `r2.dev` access disabled. Do not add a public bucket domain.
 3. In the Pages project settings → Bindings, add an R2 bucket binding named
    `ORIGINALS` pointing to that bucket. Use separate development and production
    buckets/projects. Redeploy after binding changes.
-4. Run `npm run build` locally. The prebuild generates the synthetic test PDF and
-   prints its SHA-256 digest. Set `APPROVED_PUBLIC_HASHES` in Pages to that digest.
-   It accepts a comma-separated allowlist, but only add files whose exact bytes
-   have been reviewed for admission. Leave it empty to deny all new uploads.
+4. Run `npm run build` locally. The generated example PDF is optional. Existing
+   `APPROVED_PUBLIC_HASHES` values keep legacy fixture Q&A working; new public
+   uploads require a per-file declaration and acknowledgement instead. Clearing
+   that variable no longer pauses new declared-public uploads.
 5. Redeploy, sign in, download the synthetic test PDF from the workspace, upload
    it, and inspect the rendered page and extracted text. Confirm a second account
    cannot download its original or extracted content, including by copied URL.
@@ -273,7 +323,7 @@ they do not verify your Supabase project settings or replace deployed isolation 
    migrations in local PGlite/PostgreSQL, and browser journeys. They do not attest
    to your hosted Supabase/R2 configuration or substitute for multi-instance load tests.
 
-Limits use decimal bytes: 10 MB = 10,000,000 bytes. Only successful uploads count
+Limits use decimal bytes: 30 MB = 30,000,000 bytes. Only successful uploads count
 toward the three-upload lifetime allowance. Keep the same Idempotency-Key on
 network retry; reusing a key for different file bytes/workspaces is rejected.
 Pending uploads reserve storage and an upload slot, but are not successful usage.
@@ -286,8 +336,8 @@ Originals are served only through the authenticated API, never by public R2 URL.
 No deletion/expiry workflow or backup-erasure guarantee exists yet. If a database
 response is lost after a write, the backend deliberately retains the candidate
 blob to avoid deleting a successfully committed original. Before live release,
-orphan reconciliation and the lifecycle tickets must be completed. Use synthetic
-fixtures only. No general sensitive-data detector or compliance claim is made.
+orphan reconciliation and the lifecycle tickets must be completed. Use only public,
+non-sensitive documents. No sensitive-data detector or compliance claim is made.
 
 The no-account local pilot stores both metadata and originals in ignored SQLite.
 Vite with real Supabase credentials supports sign-in/workspaces only; use the
@@ -325,7 +375,7 @@ and cannot mask the original processing result. The local runtime dependencies
 override two transitive packages to patched versions; keep these overrides
 reviewed when updating Miniflare.
 
-Free accounts have **3 lifetime uploads, 10 MB per PDF, 30 MB total original-file
+Free accounts have **3 lifetime uploads, 30 MB per file, 30 MB total original-file
 storage, and 20 lifetime successful answers**, shared across every project.
 These are not monthly allowances. Trash retains the original and does not free
 storage or reset usage. Documents and Settings show a storage meter, an 80%
@@ -369,9 +419,10 @@ Keep R2 private and retain provider billing alerts/monitoring.
 
 Deployment, once only:
 
-1. Pause uploads during the migration: temporarily clear `APPROVED_PUBLIC_HASHES`
-   in Cloudflare Pages and redeploy. Allow in-flight uploads to settle. Do not
-   delete your bucket or documents.
+1. This is the historical migration-006 rollout. For an existing installation,
+   use `folio_storage_policy.uploads_enabled=false` to pause new storage writes
+   and let in-flight requests settle; clearing hashes no longer pauses uploads.
+   For a first installation, keep the deployment offline until migrations finish.
 2. In the FolioAsk Supabase SQL Editor, apply any missing migrations 001–005 in
    order, then run the complete `supabase/migrations/006_storage_safeguards.sql`.
    Do not re-run already applied migrations. This backfills existing document
@@ -387,8 +438,8 @@ Deployment, once only:
    where singleton = true;
    ```
 
-4. Deploy this code, restore the reviewed `APPROVED_PUBLIC_HASHES` value, and
-   redeploy. No new secret or payment key is required. Check Documents and
+4. Complete migrations through 009, deploy this code, then re-enable uploads only
+   after checking the budget. No new secret or payment key is required. Check Documents and
    Settings → Usage; test the supplied synthetic PDF with a dedicated test
    account. Its uploads consume its lifetime allowance.
 5. Verify a fourth upload is rejected, saved documents remain available, the
@@ -453,9 +504,9 @@ References: [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/wo
    `FOLIO_TEST_MODE=1` and `FOLIO_LIVE_SMOKE=1`, then restart `npm run dev`.
    Without the live flag, local answers are explicitly labelled simulated.
    Automated browser tests force simulation even if your local live flag is set.
-6. For a Cloudflare controlled preview, apply migrations through 007 in Supabase, set the
+6. For a Cloudflare controlled preview, apply migrations through 009 in Supabase, set the
    key as a Pages secret and the confirmation flag as a server variable, retain
-   the exact reviewed-file allowlist, and redeploy. Removing the key/confirmation
+   existing legacy-fixture hashes if needed, and redeploy. Removing the key/confirmation
    pauses new answers while saved content remains readable.
 
 The current adapter pins `gemini-3.5-flash-lite` and `gemini-embedding-001` (768
@@ -531,9 +582,9 @@ than Google's minute limits, to allow for request latency. Daily accounting uses
 midnight `America/Los_Angeles` (DST-aware), retaining two minutes of boundary
 overlap. Embedding batch items each count as a request, conservatively. Input
 tokens are estimated using full serialized UTF-8 bytes plus framing, not measured
-by Google's tokenizer. Large indexing jobs that cannot fit a fresh window are
-rejected before spending quota; use a smaller approved PDF. Completed indexes
-are reused. A first answer can require multiple embedding calls plus generation.
+by Google's tokenizer. Large indexes use bounded batches with saved checkpoints;
+when a window fills, wait and retry the question to resume. Completed batches are
+reused. A first answer can require several quota windows plus generation.
 
 This is an **application safety buffer, not a guaranteed zero-bill ceiling**.
 It cannot count calls outside this ledger, account for provider quota changes,
@@ -609,7 +660,7 @@ After signing in, name your first project. Returning users open an existing
 project automatically. Use the project selector to switch, and the sidebar to
 open Dashboard, Documents, Chat, or Settings.
 
-- **Documents:** upload an approved synthetic PDF and inspect its original pages.
+- **Documents:** upload a public supported document and inspect its extracted sources.
 - **Chat:** select a document, ask a question, or start a New chat. A conversation
   is saved with its first successful answer. Dashboard reopens saved conversations.
   Follow-ups use at most four previous turns (up to 1,000 question and 2,000 answer
@@ -634,7 +685,7 @@ fixture profile/password changes reset when that development server restarts.
 Restart with `npm run dev` after changing environment variables. For a production
 Cloudflare deployment, rebuild/redeploy after pushing; a Git push alone does not
 prove that the live site is updated. Live document uploads require the R2 binding
-and approved-file configuration described below. If local Supabase-only development
+and public-document consent described above. If local Supabase-only development
 has no document service configured, settings report usage unavailable rather than
 inventing quota numbers. No paid subscription or regulatory-compliance certification
 is introduced by this UI upgrade.

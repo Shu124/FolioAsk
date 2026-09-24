@@ -2,6 +2,16 @@ import { getDocumentProxy } from "unpdf";
 import { HttpError, json } from "./http.ts";
 import { pdfFailure, type PdfStage } from "./pdf-errors.ts";
 import {
+  DOCUMENT_FORMATS,
+  documentFormat,
+  MAX_DOCUMENT_PAGES,
+  MAX_DOCUMENT_TEXT,
+  PRIVATE_DOCUMENT_NOTICE,
+  PUBLIC_CONSENT,
+  type DocumentFormat,
+} from "../document-policy.ts";
+import { EXTRACTION_NOTICES, extractOfficeOrText } from "./text-documents.ts";
+import {
   FREE_LIMITS,
   planUsage,
   type StorageGuardStore,
@@ -14,6 +24,8 @@ export interface Passage {
 }
 export interface SourcePage {
   number: number;
+  /** Non-PDF references describe extracted sections or worksheet rows, not print pages. */
+  label?: string;
   width: number;
   height: number;
   passages: Passage[];
@@ -30,7 +42,11 @@ export interface DocumentRecord {
   pages: SourcePage[];
   createdAt: number;
   deletedAt?: number;
-  classification: "public-approved";
+  classification: "public-approved" | "public-declared" | "private";
+  publicConsent?: typeof PUBLIC_CONSENT;
+  /** Missing on legacy records, which are PDFs. */
+  format?: DocumentFormat;
+  extractionNotice?: string;
 }
 export interface Usage {
   answers: number;
@@ -69,16 +85,26 @@ export interface DocumentServices {
 }
 const MAX_BYTES = FREE_LIMITS.fileBytes;
 
-async function readFile(request: Request) {
+async function readFile(request: Request, format: DocumentFormat) {
   if (Number(request.headers.get("content-length") || 0) > MAX_BYTES)
-    throw new HttpError(413, "Free files must be 10 MB or smaller.");
-  if (request.headers.get("content-type") !== "application/pdf")
+    throw new HttpError(413, "Free files must be 30 MB or smaller.");
+  const mime = request.headers
+    .get("content-type")
+    ?.split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (
+    mime !== DOCUMENT_FORMATS[format] &&
+    mime !== "application/octet-stream" &&
+    !(mime === "text/plain" && ["csv", "md"].includes(format)) &&
+    !(format === "csv" && mime === "application/vnd.ms-excel")
+  )
     throw new HttpError(
       415,
-      "This upload currently accepts selectable-text PDF files.",
+      "The file type does not match its filename. Use PDF, DOCX, XLSX, CSV, TXT or MD.",
     );
   const reader = request.body?.getReader();
-  if (!reader) throw new HttpError(400, "Select a PDF to upload.");
+  if (!reader) throw new HttpError(400, "Select a document to upload.");
   const chunks: Uint8Array[] = [];
   let length = 0;
   for (;;) {
@@ -87,7 +113,7 @@ async function readFile(request: Request) {
     length += value.length;
     if (length > MAX_BYTES) {
       await reader.cancel();
-      throw new HttpError(413, "Free files must be 10 MB or smaller.");
+      throw new HttpError(413, "Free files must be 30 MB or smaller.");
     }
     chunks.push(value);
   }
@@ -97,7 +123,11 @@ async function readFile(request: Request) {
     bytes.set(chunk, offset);
     offset += chunk.length;
   }
-  if (!new TextDecoder().decode(bytes.slice(0, 5)).startsWith("%PDF-"))
+  if (!length) throw new HttpError(422, "This document is empty.");
+  if (
+    format === "pdf" &&
+    !new TextDecoder().decode(bytes.subarray(0, 5)).startsWith("%PDF-")
+  )
     throw new HttpError(422, "This is not a valid PDF.");
   return bytes;
 }
@@ -110,9 +140,11 @@ async function extractPdf(
   let stage: PdfStage = "open";
   try {
     pdf = await getDocumentProxy(bytes.slice());
-    if (pdf.numPages > 20)
-      throw new HttpError(413, "Free files must contain at most 20 pages.");
+    if (pdf.numPages > MAX_DOCUMENT_PAGES)
+      throw new HttpError(413, "PDFs must contain at most 100 pages.");
     const pages: SourcePage[] = [];
+    let characters = 0,
+      passageCount = 0;
     for (let number = 1; number <= pdf.numPages; number++) {
       stage = "page";
       const page = await pdf.getPage(number);
@@ -122,6 +154,12 @@ async function extractPdf(
       const passages: Passage[] = [];
       for (const item of content.items) {
         if (!("str" in item) || !item.str.trim()) continue;
+        characters += item.str.length;
+        if (characters > MAX_DOCUMENT_TEXT || ++passageCount > 20_000)
+          throw new HttpError(
+            413,
+            "This document has too much extracted text. Split it into smaller files (maximum 200,000 text characters per file).",
+          );
         const [a, b, c, d, x0, y0] = item.transform;
         const horizontal = Math.hypot(a, b) || 1;
         const vertical = Math.hypot(c, d) || 1;
@@ -210,16 +248,39 @@ export async function documentRoute(
     const name = url.searchParams.get("name") || "document.pdf";
     if (name.length > 200 || /[\u0000-\u001f]/.test(name))
       throw new HttpError(400, "Use a filename of at most 200 characters.");
+    const privacy = request.headers.get("x-folio-document-privacy");
+    if (privacy !== null && privacy !== "public")
+      throw new HttpError(
+        403,
+        PRIVATE_DOCUMENT_NOTICE,
+        "PRIVATE_DOCUMENT_UNAVAILABLE",
+      );
+    const declared =
+      privacy === "public" &&
+      request.headers.get("x-folio-public-consent") === PUBLIC_CONSENT;
+    if (privacy === "public" && !declared)
+      throw new HttpError(
+        403,
+        "Confirm this is public, non-sensitive content with no confidential or personal data before uploading.",
+        "PUBLIC_CONSENT_REQUIRED",
+      );
+    const format = documentFormat(name);
+    if (!format)
+      throw new HttpError(
+        415,
+        "Supported formats: PDF, DOCX, XLSX, CSV, TXT and MD. Scans, images, legacy or macro-enabled Office files and PowerPoint are not supported yet.",
+      );
     await store.admitStorageOperation(ownerId, "upload", now);
-    const bytes = await readFile(request);
+    const bytes = await readFile(request, format);
     const contentHash = Array.from(
       new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
       (value) => value.toString(16).padStart(2, "0"),
     ).join("");
-    if (!services.approvedHashes.includes(contentHash))
+    if (!declared && !services.approvedHashes.includes(contentHash))
       throw new HttpError(
         403,
-        "Controlled pilot only: use an operator-reviewed, hash-approved public synthetic fixture. Patient records and sensitive or confidential files are excluded.",
+        "Confirm this is public, non-sensitive content with no confidential or personal data before uploading.",
+        "PUBLIC_CONSENT_REQUIRED",
       );
     const previous = await store.findUpload(ownerId, requestKey);
     if (previous) {
@@ -233,13 +294,25 @@ export async function documentRoute(
         );
       return json(previous, 200);
     }
-    if ((await store.usage(ownerId)).uploads >= FREE_LIMITS.uploads)
+    const usage = await store.usage(ownerId);
+    if (usage.uploads >= FREE_LIMITS.uploads)
       throw new HttpError(
         429,
         "Your 3 lifetime uploads are used. View upgrade options for more capacity. Saved documents remain available.",
         "FREE_UPLOAD_LIMIT",
       );
-    const pages = await extractPdf(bytes, contentHash);
+    // Early rejection saves parsing work; the reservation still enforces the
+    // account/global limits transactionally after extraction.
+    if (usage.storedBytes + bytes.length > FREE_LIMITS.storageBytes)
+      throw new HttpError(
+        429,
+        "This file exceeds your remaining 30 MB free storage allowance.",
+        "FREE_STORAGE_LIMIT",
+      );
+    const pages =
+      format === "pdf"
+        ? await extractPdf(bytes, contentHash)
+        : extractOfficeOrText(bytes, format);
     const id = crypto.randomUUID();
     const originalKey = `${ownerId}/${id}`;
     const document: DocumentRecord = {
@@ -253,7 +326,12 @@ export async function documentRoute(
       bytes: bytes.length,
       pages,
       createdAt: now,
-      classification: "public-approved",
+      classification: declared ? "public-declared" : "public-approved",
+      ...(declared ? { publicConsent: PUBLIC_CONSENT } : {}),
+      format,
+      ...(EXTRACTION_NOTICES[format]
+        ? { extractionNotice: EXTRACTION_NOTICES[format] }
+        : {}),
     };
     const replay = await store.reserveUpload(document);
     if (replay) return json(replay, 200);
@@ -303,8 +381,9 @@ export async function documentRoute(
     if (!bytes) throw new HttpError(503, "Original temporarily unavailable.");
     return new Response(bytes.slice().buffer, {
       headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="document.pdf"`,
+        "Content-Type": DOCUMENT_FORMATS[document.format ?? "pdf"],
+        "Content-Disposition": `attachment; filename="document.${document.format ?? "pdf"}"; filename*=UTF-8''${encodeURIComponent(document.name).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16)}`)}`,
+        "X-Content-Type-Options": "nosniff",
       },
     });
   }

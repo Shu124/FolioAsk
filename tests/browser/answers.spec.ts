@@ -1,3 +1,4 @@
+import { confirmPublicUpload } from "../fixtures/public-upload";
 import { openProjectView } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
 import { test, expect } from "@playwright/test";
@@ -21,12 +22,15 @@ test("ask a selected PDF and follow a saved citation to highlighted evidence", a
   await page.getByRole("button", { name: "Create project" }).click();
   await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles({
+  await page.getByLabel("Choose document").setInputFiles({
     name: "contract.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from(await samplePdf()),
   });
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
   });
@@ -130,8 +134,11 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
     buffer: Buffer.from(await samplePdf()),
   };
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await page.getByLabel("Choose PDF").setInputFiles(file);
-  await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+  await page.getByLabel("Choose document").setInputFiles(file);
+  await confirmPublicUpload(page);
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
   await expect(page.getByText("Ready · 1 page")).toBeVisible({
     timeout: 20_000,
   });
@@ -154,9 +161,12 @@ test("upload completion keeps Ask disabled while an answer is pending", async ({
     await page.getByRole("button", { name: "Ask selected document" }).click();
     await openProjectView(page, "Documents");
     await page
-      .getByLabel("Choose PDF")
+      .getByLabel("Choose document")
       .setInputFiles({ ...file, name: "second.pdf" });
-    await page.getByRole("button", { name: "Upload PDF", exact: true }).click();
+    await confirmPublicUpload(page);
+    await page
+      .getByRole("button", { name: "Upload document", exact: true })
+      .click();
     await expect(
       page.getByText("1 of 3 lifetime uploads remaining"),
     ).toBeVisible();

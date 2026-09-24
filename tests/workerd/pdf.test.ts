@@ -5,6 +5,7 @@ import { Miniflare } from "miniflare";
 import { samplePdf } from "../fixtures/pdf.ts";
 import { fileURLToPath } from "node:url";
 import type { Readable } from "node:stream";
+import { officeFixture } from "../fixtures/office.ts";
 
 for (const scenario of [
   "web",
@@ -65,7 +66,9 @@ for (const scenario of [
     const runtime = new Miniflare({
       handleRuntimeStdio(stdout: Readable, stderr: Readable) {
         for (const stream of [stdout, stderr])
-          stream.on("data", (chunk: Buffer) => logMessages.push(chunk.toString()));
+          stream.on("data", (chunk: Buffer) =>
+            logMessages.push(chunk.toString()),
+          );
       },
       modules: true,
       script: bundle.outputFiles[0].text,
@@ -142,3 +145,60 @@ for (const scenario of [
       await runtime.dispose();
     }
   });
+
+test("Cloudflare runtime admits bounded public PDF, Office and text documents without an allowlist", async () => {
+  const bundle = await build({
+    entryPoints: ["tests/workerd/pdf-worker.ts"],
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "browser",
+    target: "es2022",
+    external: ["node:*"],
+  });
+  const runtime = new Miniflare({
+    modules: true,
+    script: bundle.outputFiles[0].text,
+    compatibilityDate: "2026-08-06",
+    cf: false,
+  });
+  try {
+    const padded = new Uint8Array(30_000_000).fill(32);
+    padded.set(await samplePdf());
+    const cases: [string, Uint8Array][] = [
+      ["100-pages.pdf", await samplePdf(100)],
+      ["30mb.pdf", padded],
+      ["report.docx", officeFixture("docx")],
+      ["table.xlsx", officeFixture("xlsx")],
+      [
+        "notes.txt",
+        new TextEncoder().encode(
+          "Shop drawings are due within 14 calendar days.",
+        ),
+      ],
+    ];
+    for (const [name, bytes] of cases) {
+      const response = await runtime.dispatchFetch(
+        `https://test.local/api/workspaces/test/documents?name=${name}`,
+        {
+          method: "POST",
+          body: bytes,
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "Idempotency-Key": crypto.randomUUID(),
+            "X-Folio-Document-Privacy": "public",
+            "X-Folio-Public-Consent": "public-non-sensitive-v1",
+          },
+        },
+      );
+      assert.equal(
+        response.status,
+        201,
+        `${name}: ${await response.clone().text()}`,
+      );
+      assert.match(await response.text(), /14 calendar days|Doors/);
+    }
+  } finally {
+    await runtime.dispose();
+  }
+});

@@ -7,6 +7,13 @@ import { mountDocumentTable } from "./document-table";
 import { labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
 import type { PlanUsage } from "../server/storage-limits";
+import {
+  DOCUMENT_ACCEPT,
+  documentFormat,
+  PRIVATE_DOCUMENT_NOTICE,
+  PUBLIC_CONSENT,
+} from "../document-policy";
+import { showTextSource } from "./text-preview";
 
 export type Api = <T>(
   path: string,
@@ -21,7 +28,7 @@ export function mountDocuments(
   onHistory?: (history: ConversationSummary[]) => void,
 ) {
   root.classList.add("evidence-workspace");
-  root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet">Controlled pilot: public, non-sensitive, operator-approved fixtures only. No patient records, confidential files or specially regulated data. A checkbox is not proof of eligibility.</p><a href="/fixtures/contract.pdf" download class="citation">Download synthetic test PDF</a><p id="upload-usage"></p><form id="upload-form"><label>Choose PDF<input type="file" accept="application/pdf" required></label><button class="primary" type="submit">Upload PDF</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
+  root.innerHTML = `<section class="upload-section"><h3>Documents</h3><p class="quiet"></p><a href="/fixtures/contract.pdf" download class="citation">Download example PDF</a><p id="upload-usage"></p><form id="upload-form"><div class="document-privacy"><label>Document privacy<select aria-label="Document privacy"><option value="">Choose how this document may be used</option><option value="public">Public and non-sensitive</option><option value="private">Private or confidential</option><option value="unsure">I'm not sure</option></select></label><div class="private-upload-notice" hidden><p role="status"></p><button type="button">View paid options</button></div><label class="acknowledgement public-upload-consent" hidden><input type="checkbox">I confirm this document is public and contains no personal, confidential or sensitive data.</label><p class="quiet">Free Gemini may use submitted content and responses to improve Google's products. This declaration is not automatic sensitive-data detection. If unsure, do not upload. <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noopener noreferrer">Read Google's data-use terms</a>.</p></div><label>Choose document<input type="file" accept="${DOCUMENT_ACCEPT}" required></label><button class="primary" type="submit">Upload document</button></form><p role="status" id="upload-status"></p><div class="document-buttons" id="document-buttons"></div><section id="document-preview" aria-label="Document preview"></section></section>`;
   const status = root.querySelector<HTMLElement>("#upload-status")!;
   const usagePanel = document.createElement("section");
   usagePanel.setAttribute("aria-label", "Document allowance");
@@ -58,27 +65,51 @@ export function mountDocuments(
   const policy = root.querySelector<HTMLElement>(".upload-section > .quiet")!;
   policy.className = "pilot-notice";
   policy.textContent =
-    "Controlled pilot · Approved synthetic PDFs only. No patient records, confidential or regulated sensitive files.";
-  labelWithIcon(sampleLink, "Download", "Download synthetic test PDF");
+    "Public, non-sensitive documents only · PDF, DOCX, XLSX, CSV, TXT and MD · 30 MB per file and 30 MB total storage. PDFs: up to 100 pages. Extracted content: up to 200,000 characters. Scans and images are not supported yet.";
+  labelWithIcon(sampleLink, "Download", "Download example PDF");
   add.onclick = () => {
     form.hidden = !form.hidden;
     add.setAttribute("aria-expanded", String(!form.hidden));
     if (!form.hidden) input.focus();
   };
-  const input = form.querySelector<HTMLInputElement>("input")!;
-  const submit = form.querySelector<HTMLButtonElement>("button")!;
+  const input = form.querySelector<HTMLInputElement>('input[type="file"]')!;
+  const submit = form.querySelector<HTMLButtonElement>(
+    'button[type="submit"]',
+  )!;
+  const privacy = form.querySelector<HTMLSelectElement>("select")!;
+  const consent = form.querySelector<HTMLInputElement>(
+    'input[type="checkbox"]',
+  )!;
+  const privateNotice = form.querySelector<HTMLElement>(
+    ".private-upload-notice",
+  )!;
+  privateNotice.querySelector("p")!.textContent = PRIVATE_DOCUMENT_NOTICE;
+  privateNotice.querySelector("button")!.onclick = () =>
+    planUsage.showUpgrade();
+  privacy.onchange = () => {
+    consent.checked = false;
+    retryKey = crypto.randomUUID();
+    privateNotice.hidden = !privacy.value || privacy.value === "public";
+    form.querySelector<HTMLElement>(".public-upload-consent")!.hidden =
+      privacy.value !== "public";
+    updateUploadControls();
+  };
+  consent.onchange = updateUploadControls;
   function updateUploadControls() {
     const blocked =
       !allowance ||
       allowance.uploadsRemaining === 0 ||
       allowance.storageRemainingBytes === 0 ||
       allowance.uploadsPaused;
-    submit.disabled = uploading || blocked;
+    submit.disabled =
+      uploading || blocked || privacy.value !== "public" || !consent.checked;
     input.disabled = uploading || blocked;
+    privacy.disabled = uploading;
+    consent.disabled = uploading;
     add.disabled = uploading || blocked;
   }
   updateUploadControls();
-  labelWithIcon(submit, "Upload", "Upload PDF");
+  labelWithIcon(submit, "Upload", "Upload document");
   const preview = root.querySelector<HTMLElement>("#document-preview")!;
   let retryKey = crypto.randomUUID();
   let sequence = 0;
@@ -123,6 +154,8 @@ export function mountDocuments(
   );
   input.onchange = () => {
     retryKey = crypto.randomUUID();
+    consent.checked = false;
+    updateUploadControls();
   };
   async function openDocument(id: string, citation?: Citation) {
     if (disposed) return;
@@ -141,6 +174,11 @@ export function mountDocuments(
       if (disposed || current !== sequence) return;
       if (document.deletedAt !== undefined) {
         status.textContent = `${document.name} is in Trash. Restore it from Documents to inspect this source. Saved answers are preserved.`;
+        return;
+      }
+      if (document.format && document.format !== "pdf") {
+        showTextSource(preview, document, citation);
+        status.textContent = `Ready · ${document.pages.length} extracted ${document.pages.length === 1 ? "section" : "sections"}`;
         return;
       }
       const response = await fetch(`/api/documents/${id}/original`, {
@@ -286,8 +324,14 @@ export function mountDocuments(
     if (disposed || uploading || submit.disabled || !allowance) return;
     const file = input.files?.[0];
     if (!file) return;
-    if (file.size > 10_000_000) {
-      status.textContent = "Free files must be 10 MB or smaller.";
+    if (privacy.value !== "public" || !consent.checked) return;
+    if (!documentFormat(file.name)) {
+      status.textContent =
+        "Choose PDF, DOCX, XLSX, CSV, TXT or MD. Other formats and scanned images are not supported yet.";
+      return;
+    }
+    if (file.size > allowance.fileLimitBytes) {
+      status.textContent = "Free files must be 30 MB or smaller.";
       return;
     }
     if (file.size > allowance.storageRemainingBytes) {
@@ -312,13 +356,15 @@ export function mountDocuments(
       file.type || "application/octet-stream",
     );
     xhr.setRequestHeader("Idempotency-Key", retryKey);
+    xhr.setRequestHeader("X-Folio-Document-Privacy", "public");
+    xhr.setRequestHeader("X-Folio-Public-Consent", PUBLIC_CONSENT);
     xhr.upload.onprogress = (event) => {
       status.textContent = event.lengthComputable
         ? `Uploading · ${Math.round((event.loaded / event.total) * 100)}%`
         : "Uploading…";
     };
     xhr.upload.onload = () => {
-      status.textContent = "Reading PDF and saving…";
+      status.textContent = "Extracting document text and saving…";
     };
     xhr.onerror = () => {
       if (disposed) return;

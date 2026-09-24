@@ -898,6 +898,23 @@
   padding: 1.25rem 0.5rem;
   margin: 0 0 1rem;
 }
+.document-privacy {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.document-privacy select {
+  width: 100%;
+}
+.document-privacy .acknowledgement {
+  margin-block: 1rem;
+}
+.private-upload-notice {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
 .saved-answer,
 .pending-answer {
   border-bottom: 1px solid var(--border);

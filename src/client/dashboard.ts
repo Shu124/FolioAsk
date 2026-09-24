@@ -161,7 +161,7 @@ export function mountDashboard(
       cell.colSpan = 3;
       cell.className = "table-empty";
       cell.textContent =
-        "No activity yet. Add an approved document to get started.";
+        "No activity yet. Add a public document to get started.";
     }
     responsiveTable(activity);
     scroll.append(activity);

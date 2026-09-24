@@ -1,6 +1,7 @@
 import type { DocumentRecord, DocumentServices, Passage } from "./documents.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { conversationRoute, type ConversationStore } from "./conversations.ts";
+import { eligibleForFree } from "../document-policy.ts";
 
 export interface Evidence {
   id: string;
@@ -9,6 +10,7 @@ export interface Evidence {
   passageId: string;
   text: string;
   box: Passage["box"];
+  sourceLabel?: string;
 }
 export interface Citation extends Omit<Evidence, "id" | "text"> {
   quote: string;
@@ -79,22 +81,27 @@ function chunkDocument(
   for (const page of document.pages) {
     let current: Omit<IndexedChunk, "vector"> = { text: "", evidence: [] };
     for (const passage of page.passages) {
-      if (
-        current.text.length + passage.text.length > 2400 &&
-        current.evidence.length
-      ) {
-        chunks.push(current);
-        current = { text: "", evidence: [] };
+      for (const [partIndex, text] of (
+        passage.text.match(/[\s\S]{1,1200}/gu) ?? []
+      ).entries()) {
+        if (
+          current.text.length + text.length > 2400 &&
+          current.evidence.length
+        ) {
+          chunks.push(current);
+          current = { text: "", evidence: [] };
+        }
+        current.text += text + "\n";
+        current.evidence.push({
+          id: `${document.id}:${passage.id}:${partIndex}`,
+          documentId: document.id,
+          page: page.number,
+          passageId: passage.id,
+          text,
+          box: passage.box,
+          ...(page.label ? { sourceLabel: page.label } : {}),
+        });
       }
-      current.text += passage.text + "\n";
-      current.evidence.push({
-        id: `${document.id}:${passage.id}`,
-        documentId: document.id,
-        page: page.number,
-        passageId: passage.id,
-        text: passage.text,
-        box: passage.box,
-      });
     }
     if (current.evidence.length) chunks.push(current);
   }
@@ -137,27 +144,61 @@ async function retrieve(
   services: AnswerServices,
 ): Promise<Evidence[]> {
   const provider = services.provider!;
-  let chunks = await services.store.getIndex(
-    document.id,
-    document.ownerId,
-    provider.indexKey,
-  );
-  if (!chunks) {
-    const raw = chunkDocument(document);
-    const vectors = await provider.embed(
-      raw.map((chunk) => chunk.text),
-      "document",
+  const indexKey = `${provider.indexKey}:bounded-v2`;
+  const raw = chunkDocument(document);
+  let chunks =
+    (await services.store.getIndex(document.id, document.ownerId, indexKey)) ??
+    [];
+  if (
+    chunks.length > raw.length ||
+    chunks.some(
+      (chunk, index) =>
+        chunk.text !== raw[index].text || !validVector(chunk.vector),
+    )
+  )
+    throw new HttpError(
+      503,
+      "The saved document index could not be verified. Contact support before retrying.",
     );
-    if (vectors.length !== raw.length || !vectors.every(validVector))
+  while (chunks.length < raw.length) {
+    // Small durable checkpoints let large documents resume after the shared
+    // free quota pauses. Provider admission remains the final budget authority.
+    const batch: typeof raw = [];
+    let bytes = 0;
+    for (const chunk of raw.slice(chunks.length)) {
+      const size = new TextEncoder().encode(chunk.text).length + 1024;
+      if (batch.length && bytes + size > 12_000) break;
+      batch.push(chunk);
+      bytes += size;
+    }
+    let vectors: number[][];
+    try {
+      vectors = await provider.embed(
+        batch.map((chunk) => chunk.text),
+        "document",
+      );
+    } catch (error) {
+      if (error instanceof HttpError && [429, 503].includes(error.status))
+        throw new HttpError(
+          error.status,
+          `Document indexing paused at ${chunks.length} of ${raw.length} sections. Progress is saved; retry this question later to resume. ${error.message}`,
+          error.code,
+        );
+      throw error;
+    }
+    if (vectors.length !== batch.length || !vectors.every(validVector))
       throw new HttpError(
         503,
         "Embedding service returned an invalid result. Retry later.",
       );
-    chunks = raw.map((chunk, index) => ({ ...chunk, vector: vectors[index] }));
+    chunks = [
+      ...chunks,
+      ...batch.map((chunk, index) => ({ ...chunk, vector: vectors[index] })),
+    ];
     await services.store.putIndex(
       document.id,
       document.ownerId,
-      provider.indexKey,
+      indexKey,
       chunks,
     );
   }
@@ -232,6 +273,7 @@ function validateAnswer(
         passageId: source.passageId,
         box: source.box,
         quote: citation.quote,
+        ...(source.sourceLabel ? { sourceLabel: source.sourceLabel } : {}),
       });
     }
   }
@@ -275,10 +317,7 @@ export async function answerRoute(
     data.documentIds.length !== 1 ||
     typeof data.documentIds[0] !== "string"
   )
-    throw new HttpError(
-      400,
-      "Select exactly one processed PDF for this slice.",
-    );
+    throw new HttpError(400, "Select exactly one processed document.");
   const document = await documents.store.getDocument(
     data.documentIds[0],
     ownerId,
@@ -290,10 +329,7 @@ export async function answerRoute(
       410,
       "This document is in Trash. Restore it before asking a new question.",
     );
-  if (
-    document.classification !== "public-approved" ||
-    !documents.approvedHashes.includes(document.contentHash)
-  )
+  if (!eligibleForFree(document, documents.approvedHashes))
     throw new HttpError(
       403,
       "This document is not approved for free processing.",

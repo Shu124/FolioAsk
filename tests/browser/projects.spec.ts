@@ -129,7 +129,7 @@ test("first project onboarding leads to persistent sidebar navigation", async ({
   await expect(nav).toBeVisible();
   await openProjectView(page, "Documents");
   await page.getByRole("button", { name: "Add document", exact: true }).click();
-  await expect(page.getByLabel("Choose PDF")).toBeVisible();
+  await expect(page.getByLabel("Choose document")).toBeVisible();
   await openProjectView(page, "Chat");
   await expect(page.getByLabel("Your question")).toBeVisible();
   await openProjectView(page, "Dashboard");
