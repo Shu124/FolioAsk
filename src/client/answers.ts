@@ -60,7 +60,9 @@ export function mountAnswers(
   let disposed = false;
   let pending = false;
   let pendingTurn: { question: string; requestKey: string } | undefined;
+  let queuedConversation: { id?: string } | undefined;
   let historyInvalidated = false;
+  let historyGeneration = 0;
   let refreshRevision = 0;
   let answers: AnswerRecord[] = [];
   let chats: Conversation[] = [];
@@ -103,7 +105,13 @@ export function mountAnswers(
     window.history.replaceState(null, "", url.pathname + url.search);
   }
   function openConversation(id?: string) {
-    if (pending || disposed) return;
+    if (disposed) return;
+    if (pending) {
+      // Dashboard links remain available while a turn settles. Honor the latest
+      // selection afterwards without moving the pending turn into another chat.
+      queuedConversation = { id };
+      return;
+    }
     if (id && !answers.some((answer) => (answer.threadId ?? answer.id) === id))
       return;
     threadId = id;
@@ -129,6 +137,9 @@ export function mountAnswers(
       chats.some((chat) => chat.id === threadId && chat.archived) ||
       allowance.answersRemaining === 0;
     question.disabled = pending || disposed;
+    question.placeholder = pending
+      ? "Waiting for the answer…"
+      : "Ask a question about your document…";
     selection.disabled = pending || disposed;
     picker.disabled = pending || disposed;
     newChat.disabled = pending || disposed || historyInvalidated;
@@ -176,48 +187,47 @@ export function mountAnswers(
       notice.textContent =
         "Reloading conversation history. Previous results are hidden until the latest history is available.";
       history.append(notice);
-      updateControls();
-      return;
-    }
-    if (!threadId && !pendingTurn) {
-      const empty = document.createElement("div");
-      empty.className = "chat-empty";
-      empty.innerHTML =
-        '<span class="chat-monogram">F</span><h2>What would you like to find?</h2><p>Select an uploaded document below, then ask a question. Add documents from the Documents section.</p>';
-      history.append(empty);
-    }
-    for (const answer of answers.filter(
-      (answer) =>
-        (answer.threadId ?? answer.id) === threadId ||
-        answer.requestKey === pendingTurn?.requestKey,
-    )) {
-      const card = answerCard(answer.question, "saved-answer");
-      const label = document.createElement("p");
-      label.className = "quiet";
-      label.textContent =
-        answer.providerMode === "simulated"
-          ? "Simulated provider · Not live AI"
-          : "Gemini answer · Verify the evidence";
-      const text = document.createElement("p");
-      text.textContent = answer.text;
-      card.append(label, text);
-      for (const citation of answer.citations) {
-        const link = document.createElement("button");
-        link.type = "button";
-        link.className = "citation";
-        labelWithIcon(
-          link,
-          "Source",
-          `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`,
-        );
-        link.onclick = () => {
-          void onCitation(citation).catch(() => {
-            status.textContent = "Could not open the source. Please retry.";
-          });
-        };
-        card.append(link);
+    } else {
+      if (!threadId && !pendingTurn) {
+        const empty = document.createElement("div");
+        empty.className = "chat-empty";
+        empty.innerHTML =
+          '<span class="chat-monogram">F</span><h2>What would you like to find?</h2><p>Select an uploaded document below, then ask a question. Add documents from the Documents section.</p>';
+        history.append(empty);
       }
-      history.append(card);
+      for (const answer of answers.filter(
+        (answer) =>
+          (answer.threadId ?? answer.id) === threadId ||
+          answer.requestKey === pendingTurn?.requestKey,
+      )) {
+        const card = answerCard(answer.question, "saved-answer");
+        const label = document.createElement("p");
+        label.className = "quiet";
+        label.textContent =
+          answer.providerMode === "simulated"
+            ? "Simulated provider · Not live AI"
+            : "Gemini answer · Verify the evidence";
+        const text = document.createElement("p");
+        text.textContent = answer.text;
+        card.append(label, text);
+        for (const citation of answer.citations) {
+          const link = document.createElement("button");
+          link.type = "button";
+          link.className = "citation";
+          labelWithIcon(
+            link,
+            "Source",
+            `Source · page ${citation.page}${trashedIds.has(citation.documentId) ? " · In Trash" : ""}`,
+          );
+          link.onclick = () => {
+            void onCitation(citation).catch(() => {
+              status.textContent = "Could not open the source. Please retry.";
+            });
+          };
+          card.append(link);
+        }
+        history.append(card);
+      }
     }
     if (
       pendingTurn &&
@@ -263,6 +273,7 @@ export function mountAnswers(
       requestKey,
       threadId,
     };
+    const submittedGeneration = historyGeneration;
     pending = true;
     pendingTurn = submitted;
     question.value = "";
@@ -281,18 +292,32 @@ export function mountAnswers(
         pendingTurn = undefined;
         // A read started before this write must not replace the saved response.
         refreshRevision++;
-        threadId = saved.threadId ?? saved.id;
-        rememberThread();
         // The write succeeded even if a subsequent history read fails.
         question.value = "";
         requestKey = crypto.randomUUID();
-        answers = [
-          ...answers.filter((answer) => answer.id !== saved.id),
-          saved,
-        ];
+        // Settings may have deleted this conversation while the POST response
+        // was in flight. Never reinsert it across a history mutation.
+        const historyChanged = submittedGeneration !== historyGeneration;
+        if (!historyChanged) {
+          threadId = saved.threadId ?? saved.id;
+          rememberThread();
+          answers = [
+            ...answers.filter((answer) => answer.id !== saved.id),
+            saved,
+          ];
+        }
         renderHistory();
-        await refresh();
+        const refreshed = await refresh();
         if (disposed) return;
+        if (
+          historyChanged &&
+          refreshed &&
+          answers.some((answer) => answer.id === saved.id)
+        ) {
+          threadId = saved.threadId ?? saved.id;
+          rememberThread();
+          renderHistory();
+        }
         status.textContent =
           "Answer saved. Inspect its sources below the answer.";
       } catch (error) {
@@ -301,15 +326,22 @@ export function mountAnswers(
         if (!committed) question.value = submitted.question;
         status.textContent = committed
           ? "Your answer was saved, but history or allowance could not refresh. Refresh the page to reload them."
-          : error instanceof Error
-            ? error.message
-            : "Could not answer. Your draft is preserved.";
+          : error instanceof TypeError
+            ? "Connection failed. Your draft is preserved. Check your connection, then retry the question."
+            : error instanceof Error
+              ? error.message
+              : "Could not answer. Your draft is preserved.";
         renderHistory();
         await refresh().catch(() => {});
       } finally {
         pending = false;
         pendingTurn = undefined;
         updateControls();
+        const queued = queuedConversation;
+        queuedConversation = undefined;
+        // Keep a failed question and its retry key visible, even if a dashboard
+        // link was clicked before the failure arrived.
+        if (queued && committed) openConversation(queued.id);
       }
     })();
   };
@@ -317,6 +349,7 @@ export function mountAnswers(
     refresh,
     invalidateHistory() {
       historyInvalidated = true;
+      historyGeneration++;
       refreshRevision++;
       answers = [];
       chats = [];
@@ -327,6 +360,7 @@ export function mountAnswers(
     dispose() {
       disposed = true;
       pendingTurn = undefined;
+      queuedConversation = undefined;
       layout.dispose();
       management.dispose();
       planUsage.dispose();

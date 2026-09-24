@@ -4,8 +4,11 @@ import {
   closeChatHistory,
 } from "../fixtures/navigation";
 import { completeOnboarding } from "../fixtures/onboarding";
-import { test, expect } from "@playwright/test";
+import { test, expect as baseExpect } from "@playwright/test";
 import { samplePdf } from "../fixtures/pdf";
+
+test.setTimeout(120_000);
+const expect = baseExpect.configure({ timeout: 15_000 });
 
 test("separate conversations reopen from dashboard with their own saved answers", async ({
   page,
@@ -46,13 +49,25 @@ test("separate conversations reopen from dashboard with their own saved answers"
   await expect(page.locator(".saved-answer")).toHaveCount(2);
   await page.getByRole("button", { name: "New chat", exact: true }).click();
   await expect(page.locator(".saved-answer")).toHaveCount(0);
-  await page.getByLabel("Your question").fill("What is the project budget?");
-  await page.getByRole("button", { name: "Ask selected document" }).click();
-  await expect(page.locator(".saved-answer")).toHaveCount(1);
-  await openProjectView(page, "Dashboard");
-  await page
-    .getByRole("button", { name: "When are shop drawings due?", exact: true })
-    .click();
+  let releaseHistory!: () => void;
+  const historyGate = new Promise<void>((resolve) => {
+    releaseHistory = resolve;
+  });
+  await page.route("**/api/workspaces/*/answers", async (route) => {
+    if (route.request().method() === "GET") await historyGate;
+    await route.continue();
+  });
+  try {
+    await page.getByLabel("Your question").fill("What is the project budget?");
+    await page.getByRole("button", { name: "Ask selected document" }).click();
+    await expect(page.locator(".saved-answer")).toHaveCount(1);
+    await openProjectView(page, "Dashboard");
+    await page
+      .getByRole("button", { name: "When are shop drawings due?", exact: true })
+      .click();
+  } finally {
+    releaseHistory();
+  }
   await expect(page.locator(".saved-answer")).toHaveCount(2);
   await page.reload();
   await expect(page.locator(".saved-answer")).toHaveCount(2);
