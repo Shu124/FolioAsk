@@ -59,6 +59,7 @@ export function mountAnswers(
   let requestKey = crypto.randomUUID();
   let disposed = false;
   let pending = false;
+  let pendingTurn: { question: string; requestKey: string } | undefined;
   let historyInvalidated = false;
   let refreshRevision = 0;
   let answers: AnswerRecord[] = [];
@@ -178,7 +179,7 @@ export function mountAnswers(
       updateControls();
       return;
     }
-    if (!threadId) {
+    if (!threadId && !pendingTurn) {
       const empty = document.createElement("div");
       empty.className = "chat-empty";
       empty.innerHTML =
@@ -186,24 +187,20 @@ export function mountAnswers(
       history.append(empty);
     }
     for (const answer of answers.filter(
-      (answer) => (answer.threadId ?? answer.id) === threadId,
+      (answer) =>
+        (answer.threadId ?? answer.id) === threadId ||
+        answer.requestKey === pendingTurn?.requestKey,
     )) {
-      const card = document.createElement("article");
-      card.className = "saved-answer";
-      const heading = document.createElement("h4");
-      heading.textContent = answer.question;
+      const card = answerCard(answer.question, "saved-answer");
       const label = document.createElement("p");
       label.className = "quiet";
       label.textContent =
         answer.providerMode === "simulated"
           ? "Simulated provider · Not live AI"
           : "Gemini answer · Verify the evidence";
-      const assistantLabel = document.createElement("div");
-      assistantLabel.className = "assistant-label";
-      assistantLabel.innerHTML = `${icon("Chat")}<strong>FolioAsk</strong>`;
       const text = document.createElement("p");
       text.textContent = answer.text;
-      card.append(heading, assistantLabel, label, text);
+      card.append(label, text);
       for (const citation of answer.citations) {
         const link = document.createElement("button");
         link.type = "button";
@@ -222,49 +219,96 @@ export function mountAnswers(
       }
       history.append(card);
     }
+    if (
+      pendingTurn &&
+      !answers.some((answer) => answer.requestKey === pendingTurn?.requestKey)
+    ) {
+      const card = answerCard(pendingTurn.question, "pending-answer");
+      const thinking = document.createElement("div");
+      thinking.className = "answer-thinking";
+      thinking.setAttribute("role", "status");
+      thinking.setAttribute("aria-live", "polite");
+      thinking.setAttribute("aria-atomic", "true");
+      thinking.innerHTML =
+        '<span class="thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span><span>Finding an answer…</span>';
+      card.append(thinking);
+      history.append(card);
+    }
     // A dashboard selection becomes visible after this synchronous render.
     requestAnimationFrame(() => {
       if (!disposed) history.scrollTop = history.scrollHeight;
     });
     updateControls();
   }
+  function answerCard(
+    text: string,
+    className: "saved-answer" | "pending-answer",
+  ) {
+    const card = document.createElement("article");
+    card.className = className;
+    const heading = document.createElement("h4");
+    heading.textContent = text;
+    const assistantLabel = document.createElement("div");
+    assistantLabel.className = "assistant-label";
+    assistantLabel.innerHTML = `${icon("Chat")}<strong>FolioAsk</strong>`;
+    card.append(heading, assistantLabel);
+    return card;
+  }
   form.onsubmit = (event) => {
     event.preventDefault();
     if (pending || disposed || button.disabled || !selection.value) return;
+    const submitted = {
+      question: question.value,
+      documentIds: [selection.value],
+      requestKey,
+      threadId,
+    };
     pending = true;
-    updateControls();
-    status.textContent = "Retrieving evidence and asking the model…";
+    pendingTurn = submitted;
+    question.value = "";
+    status.textContent = "";
+    renderHistory();
     void (async () => {
+      let committed = false;
       try {
         const saved = await api<AnswerRecord>(
           `/workspaces/${workspaceId}/answers`,
           "POST",
-          {
-            question: question.value,
-            documentIds: [selection.value],
-            requestKey,
-            threadId,
-          },
+          submitted,
         );
         if (disposed) return;
+        committed = true;
+        pendingTurn = undefined;
+        // A read started before this write must not replace the saved response.
+        refreshRevision++;
         threadId = saved.threadId ?? saved.id;
         rememberThread();
         // The write succeeded even if a subsequent history read fails.
         question.value = "";
         requestKey = crypto.randomUUID();
+        answers = [
+          ...answers.filter((answer) => answer.id !== saved.id),
+          saved,
+        ];
+        renderHistory();
         await refresh();
         if (disposed) return;
         status.textContent =
           "Answer saved. Inspect its sources below the answer.";
       } catch (error) {
+        if (disposed) return;
+        pendingTurn = undefined;
+        if (!committed) question.value = submitted.question;
+        status.textContent = committed
+          ? "Your answer was saved, but history or allowance could not refresh. Refresh the page to reload them."
+          : error instanceof Error
+            ? error.message
+            : "Could not answer. Your draft is preserved.";
+        renderHistory();
         await refresh().catch(() => {});
-        if (!disposed)
-          status.textContent =
-            error instanceof Error
-              ? error.message
-              : "Could not answer. Your draft is preserved.";
       } finally {
         pending = false;
+        pendingTurn = undefined;
         updateControls();
       }
     })();
@@ -282,6 +326,7 @@ export function mountAnswers(
     openConversation,
     dispose() {
       disposed = true;
+      pendingTurn = undefined;
       layout.dispose();
       management.dispose();
       planUsage.dispose();

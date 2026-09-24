@@ -898,17 +898,20 @@
   padding: 1.25rem 0.5rem;
   margin: 0 0 1rem;
 }
-.saved-answer {
+.saved-answer,
+.pending-answer {
   border-bottom: 1px solid var(--border);
   padding: 1rem 0.5rem 1.5rem;
   margin: 0 0 1rem;
   overflow-wrap: anywhere;
 }
-.saved-answer:last-child {
+.saved-answer:last-child,
+.pending-answer:last-child {
   border-bottom: 0;
   margin-bottom: 0;
 }
-.saved-answer h4 {
+.saved-answer h4,
+.pending-answer h4 {
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
   border-radius: 16px 16px 4px 16px;

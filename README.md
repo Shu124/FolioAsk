@@ -9,6 +9,11 @@ up to 1100px chat history has its own drawer. Phones, tablets and folded/unfolde
 screens adapt to the available CSS width. A short viewport or enlarged text uses
 page scrolling so the composer is not clipped. Light, dark and system themes remain.
 
+Submitting a question immediately adds it to the conversation with an accessible
+"Finding an answer…" indicator. The saved answer and citations replace that pending
+turn when ready; this is a waiting indicator, not token streaming. Failed requests
+restore the draft for retry. Animated dots respect reduced-motion preferences.
+
 Settings → Account contains profile details only. Settings → Chat history manages
 the **current project's** real conversations: rename, archive/restore, delete, or
 confirm clearing the entire project's history. Deletion is permanent; documents,
