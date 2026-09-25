@@ -907,6 +907,9 @@
 }
 .document-privacy .acknowledgement {
   flex-direction: row;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
   margin-block: 1rem;
 }
 .document-privacy input[type="checkbox"] {

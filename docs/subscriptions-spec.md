@@ -277,9 +277,8 @@ The following proposed test seams need owner confirmation before new test work:
 
 - The owner reports an approved India Stripe account. Verify sandbox configuration
   and live export eligibility without requesting credentials in conversation.
-- GitHub authentication currently returns HTTP 401. The product specification can
-  be prepared locally, but no issue publication, remote push, or issue closure is
-  claimed. Keep tickets in the configured GitHub tracker; do not create local copies.
+- Keep implementation tickets in the configured GitHub tracker after breakdown
+  approval; do not create local ticket copies or claim unverified issue closure.
 - Ticket publication and new test work await confirmation of the proposed breakdown
   and test seams. The product choices above were approved during planning.
 - Provide setup instructions for ordered migrations, Stripe products/prices/webhooks
