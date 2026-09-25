@@ -28,7 +28,7 @@ test("dashboard shows honest zero metrics and active time stops when hidden or i
     page.getByRole("table", { name: "Seven-day activity data" }),
   ).toBeVisible();
   await expect(
-    page.getByText("No activity yet. Add an approved document to get started."),
+    page.getByText("No activity yet. Add a public document to get started."),
   ).toBeVisible();
   let sent = 0;
   const recorded = new Map<number, number>();
