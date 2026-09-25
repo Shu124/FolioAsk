@@ -3,7 +3,7 @@ import type { Api } from "./documents";
 import { passwordVisibility } from "./password-field";
 import { labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
-import type { PlanUsage } from "../server/storage-limits";
+import type { PlanUsage } from "../server/entitlements";
 import { mountSettingsHistory } from "./settings-history";
 
 export function mountSettings(

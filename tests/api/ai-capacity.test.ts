@@ -7,7 +7,7 @@ import {
   estimatedInputTokens,
   sharedAiQuota,
 } from "../../src/server/ai-capacity.ts";
-import { freeGemini } from "../../src/server/gemini.ts";
+import { unpaidGemini } from "../../src/server/gemini.ts";
 import { createApi } from "../../src/server/api.ts";
 import { SqliteStore } from "../../src/server/sqlite-store.ts";
 
@@ -203,7 +203,7 @@ test("Gemini reserves every outbound attempt, counts batch items, pins tested mo
           },
     );
   });
-  const provider = freeGemini("test-not-a-secret", quota);
+  const provider = unpaidGemini("test-not-a-secret", quota);
   await provider.embed(["hello", "こんにちは"], "document");
   await provider.answer("question", []);
   assert.match(urls[0], /gemini-embedding-001:batchEmbedContents$/);
@@ -235,7 +235,7 @@ test("missing/malformed ledger fails closed, huge indexing rejected before any c
     throw new Error("must not call");
   });
   for (const result of [null, {}, { allowed: "true" }, { allowed: 1 }]) {
-    const provider = freeGemini(
+    const provider = unpaidGemini(
       "test",
       sharedAiQuota(async () => result),
     );
@@ -249,11 +249,11 @@ test("missing/malformed ledger fails closed, huge indexing rejected before any c
   });
   assert.deepEqual(await broken.snapshot(), { state: "unavailable" });
   await assert.rejects(
-    freeGemini("test", broken).answer("text", []),
+    unpaidGemini("test", broken).answer("text", []),
     /tracking is unavailable/,
   );
   let reserves = 0;
-  const provider = freeGemini(
+  const provider = unpaidGemini(
     "test",
     sharedAiQuota(async () => {
       reserves++;
@@ -286,7 +286,7 @@ test("shared AI status is authenticated and reveals no ledger or user details", 
         signUp: async () => {},
       },
       aiQuota: quota,
-      answers: { store, provider: freeGemini("test", quota) },
+      answers: { store, provider: unpaidGemini("test", quota) },
     });
     assert.equal(
       (await api(new Request("http://localhost/api/ai-capacity"))).status,

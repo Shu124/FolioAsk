@@ -2,7 +2,7 @@ import type { ModelProvider } from "../../src/server/answers.ts";
 
 /** External-service simulation for local/test use. Never imported by production. */
 export const controlledProvider: ModelProvider = {
-  kind: "free",
+  billing: "unpaid",
   mode: "simulated",
   indexKey: "controlled-v1",
   async embed(texts) {

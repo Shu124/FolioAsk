@@ -1,4 +1,4 @@
-import type { PlanUsage } from "../server/storage-limits";
+import type { PlanUsage } from "../server/entitlements";
 import { labelWithIcon } from "./icons";
 import { mountAiCapacity } from "./ai-capacity";
 import type { Api } from "./documents";

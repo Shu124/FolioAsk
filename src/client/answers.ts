@@ -4,7 +4,7 @@ import type { Api } from "./documents";
 import type { ConversationSummary } from "./conversations";
 import { icon, labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
-import type { PlanUsage } from "../server/storage-limits";
+import type { PlanUsage } from "../server/entitlements";
 import type { Conversation } from "../server/conversations";
 import { mountChatManagement } from "./chat-management";
 import { mountChatLayout } from "./chat-layout";

@@ -1,6 +1,7 @@
 import type { DocumentRecord, DocumentServices, Passage } from "./documents.ts";
 import { bodyJson, hashToken, HttpError, json, requiredText } from "./http.ts";
 import { conversationRoute, type ConversationStore } from "./conversations.ts";
+import { PILOT_ENTITLEMENTS } from "./entitlements.ts";
 import {
   eligibleForFree,
   PASSAGE_CHARACTERS,
@@ -60,7 +61,8 @@ export interface AnswerStore extends ConversationStore {
   ): Promise<void>;
 }
 export interface ModelProvider {
-  kind: "free";
+  /** Provider billing, not the customer's plan. Paid routing is not enabled yet. */
+  billing: "unpaid";
   mode?: "simulated" | "live";
   indexKey: string;
   embed(texts: string[], task: "document" | "query"): Promise<number[][]>;
@@ -323,7 +325,7 @@ export async function answerRoute(
       : requiredText(data.threadId, "Conversation", 100);
   if (
     !Array.isArray(data.documentIds) ||
-    data.documentIds.length !== 1 ||
+    data.documentIds.length !== PILOT_ENTITLEMENTS.documentsPerQuestion ||
     typeof data.documentIds[0] !== "string"
   )
     throw new HttpError(400, "Select exactly one processed document.");
@@ -382,13 +384,13 @@ export async function answerRoute(
     question: answer.question.slice(0, 1000),
     text: answer.text.slice(0, 2000),
   }));
-  if ((await documents.store.usage(ownerId)).answers >= 20)
+  if ((await documents.store.usage(ownerId)).answers >= PILOT_ENTITLEMENTS.answers)
     throw new HttpError(
       429,
       "Your 20 lifetime answers are used. View upgrade options for more capacity. Saved work remains available.",
       "FREE_ANSWER_LIMIT",
     );
-  if (!services.provider || services.provider.kind !== "free")
+  if (!services.provider || services.provider.billing !== "unpaid")
     throw new HttpError(
       503,
       "Free AI is not configured or is paused. Your question is preserved.",

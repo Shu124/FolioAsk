@@ -6,7 +6,7 @@ import { sourceDrawer } from "./source-drawer";
 import { mountDocumentTable } from "./document-table";
 import { labelWithIcon } from "./icons";
 import { mountPlanUsage } from "./plan-usage";
-import type { PlanUsage } from "../server/storage-limits";
+import type { PlanUsage } from "../server/entitlements";
 import {
   DOCUMENT_ACCEPT,
   documentFormat,

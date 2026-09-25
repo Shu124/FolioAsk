@@ -11,11 +11,8 @@ import {
   type DocumentFormat,
 } from "../document-policy.ts";
 import { EXTRACTION_NOTICES, extractOfficeOrText } from "./text-documents.ts";
-import {
-  FREE_LIMITS,
-  planUsage,
-  type StorageGuardStore,
-} from "./storage-limits.ts";
+import { PILOT_ENTITLEMENTS, planUsage } from "./entitlements.ts";
+import type { StorageGuardStore } from "./storage-limits.ts";
 
 export interface Passage {
   id: string;
@@ -83,7 +80,7 @@ export interface DocumentServices {
   blobs: BlobStore;
   approvedHashes: string[];
 }
-const MAX_BYTES = FREE_LIMITS.fileBytes;
+const MAX_BYTES = PILOT_ENTITLEMENTS.fileBytes;
 
 async function readFile(request: Request, format: DocumentFormat) {
   if (Number(request.headers.get("content-length") || 0) > MAX_BYTES)
@@ -295,7 +292,7 @@ export async function documentRoute(
       return json(previous, 200);
     }
     const usage = await store.usage(ownerId);
-    if (usage.uploads >= FREE_LIMITS.uploads)
+    if (usage.uploads >= PILOT_ENTITLEMENTS.uploads)
       throw new HttpError(
         429,
         "Your 3 lifetime uploads are used. View upgrade options for more capacity. Saved documents remain available.",
@@ -303,7 +300,7 @@ export async function documentRoute(
       );
     // Early rejection saves parsing work; the reservation still enforces the
     // account/global limits transactionally after extraction.
-    if (usage.storedBytes + bytes.length > FREE_LIMITS.storageBytes)
+    if (usage.storedBytes + bytes.length > PILOT_ENTITLEMENTS.storageBytes)
       throw new HttpError(
         429,
         "This file exceeds your remaining 30 MB free storage allowance.",

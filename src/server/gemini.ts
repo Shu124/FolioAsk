@@ -7,7 +7,7 @@ import {
   type FreeModel,
 } from "./ai-capacity.ts";
 
-export function freeGemini(apiKey: string, quota: AiQuota): ModelProvider {
+export function unpaidGemini(apiKey: string, quota: AiQuota): ModelProvider {
   async function call(
     model: FreeModel,
     method: string,
@@ -39,7 +39,7 @@ export function freeGemini(apiKey: string, quota: AiQuota): ModelProvider {
     return response.json();
   }
   return {
-    kind: "free",
+    billing: "unpaid",
     mode: "live",
     indexKey: "gemini-embedding-001:768:v1",
     async embed(texts, task) {

@@ -11,8 +11,8 @@ import type { Conversation, ConversationChange } from "./conversations.ts";
 import type { AnswerStore, AnswerRecord, IndexedChunk } from "./answers.ts";
 import type { ActivityStore, ActiveTime } from "./activity.ts";
 import { SqliteStorageGuard } from "./sqlite-storage-guard.ts";
+import { PILOT_ENTITLEMENTS } from "./entitlements.ts";
 import {
-  FREE_LIMITS,
   type StorageOperation,
   type StoragePolicy,
 } from "./storage-limits.ts";
@@ -246,9 +246,9 @@ export class SqliteStore
           document.pages.length,
           document.bytes,
           document.ownerId,
-          FREE_LIMITS.uploads,
+          PILOT_ENTITLEMENTS.uploads,
           document.bytes,
-          FREE_LIMITS.storageBytes,
+          PILOT_ENTITLEMENTS.storageBytes,
         );
       if (!changed.changes)
         throw new HttpError(
@@ -444,9 +444,9 @@ export class SqliteStore
         .run(answer.ownerId);
       const updated = this.db
         .prepare(
-          "UPDATE usage SET answers=answers+1 WHERE owner_id=? AND answers<20",
+          "UPDATE usage SET answers=answers+1 WHERE owner_id=? AND answers<?",
         )
-        .run(answer.ownerId);
+        .run(answer.ownerId, PILOT_ENTITLEMENTS.answers);
       if (!updated.changes)
         throw new HttpError(
           429,

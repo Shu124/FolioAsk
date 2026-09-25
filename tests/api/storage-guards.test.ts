@@ -4,10 +4,8 @@ import { createApi } from "../../src/server/api.ts";
 import { SqliteStore } from "../../src/server/sqlite-store.ts";
 import { HttpError } from "../../src/server/http.ts";
 import type { BlobStore } from "../../src/server/documents.ts";
-import type {
-  PlanUsage,
-  StoragePolicy,
-} from "../../src/server/storage-limits.ts";
+import type { PlanUsage } from "../../src/server/entitlements.ts";
+import type { StoragePolicy } from "../../src/server/storage-limits.ts";
 import { samplePdf } from "../fixtures/pdf.ts";
 
 async function setup(policy: Partial<StoragePolicy> = {}, padded = false) {

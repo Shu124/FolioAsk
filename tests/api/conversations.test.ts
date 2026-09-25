@@ -12,7 +12,7 @@ test("conversations persist, isolate follow-up context, and preserve retry ident
     "hex",
   );
   const provider: ModelProvider = {
-    kind: "free",
+    billing: "unpaid",
     indexKey: "conversation-test",
     async embed(texts) {
       return texts.map(() => [1, 0]);

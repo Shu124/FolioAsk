@@ -6,7 +6,7 @@ import { SqliteStore } from "./src/server/sqlite-store.ts";
 import { supabaseAdapters } from "./src/server/supabase.ts";
 import { controlledProvider } from "./tests/fixtures/provider.ts";
 import { controlledIdentity } from "./tests/fixtures/identity.ts";
-import { freeGemini } from "./src/server/gemini.ts";
+import { unpaidGemini } from "./src/server/gemini.ts";
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
                     ? env.GEMINI_FREE_API_KEY &&
                       env.GEMINI_FREE_PROJECT_CONFIRMED === "yes" &&
                       liveQuota
-                      ? freeGemini(env.GEMINI_FREE_API_KEY, liveQuota)
+                      ? unpaidGemini(env.GEMINI_FREE_API_KEY, liveQuota)
                       : undefined
                     : controlledProvider,
               },

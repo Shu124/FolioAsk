@@ -4,7 +4,7 @@ import {
   type SupabaseConfig,
 } from "../../src/server/supabase";
 import { r2Originals, type OriginalBucket } from "../../src/server/r2";
-import { freeGemini } from "../../src/server/gemini";
+import { unpaidGemini } from "../../src/server/gemini";
 
 export async function onRequest(context: {
   request: Request;
@@ -36,7 +36,7 @@ export async function onRequest(context: {
       provider:
         context.env.GEMINI_FREE_API_KEY &&
         context.env.GEMINI_FREE_PROJECT_CONFIRMED === "yes"
-          ? freeGemini(context.env.GEMINI_FREE_API_KEY, adapters.aiQuota)
+          ? unpaidGemini(context.env.GEMINI_FREE_API_KEY, adapters.aiQuota)
           : undefined,
     },
     documents: context.env.ORIGINALS

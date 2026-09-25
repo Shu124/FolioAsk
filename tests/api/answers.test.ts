@@ -11,7 +11,7 @@ test("ask an owned PDF, recover saved answer and inspect its exact cited evidenc
     "hex",
   );
   const provider = {
-    kind: "free" as const,
+    billing: "unpaid" as const,
     indexKey: "controlled-v1",
     embed: async (texts: string[]) => texts.map(() => [1, 0]),
     answer: async (

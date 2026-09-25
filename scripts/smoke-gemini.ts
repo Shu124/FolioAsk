@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createApi } from "../src/server/api.ts";
-import { freeGemini } from "../src/server/gemini.ts";
+import { unpaidGemini } from "../src/server/gemini.ts";
 import { SqliteStore } from "../src/server/sqlite-store.ts";
 import { samplePdf } from "../tests/fixtures/pdf.ts";
 import { supabaseAdapters } from "../src/server/supabase.ts";
@@ -35,7 +35,7 @@ const api = createApi({
   documents: { store, blobs: store, approvedHashes: [approvedHash] },
   answers: {
     store,
-    provider: freeGemini(process.env.GEMINI_FREE_API_KEY, aiQuota),
+    provider: unpaidGemini(process.env.GEMINI_FREE_API_KEY, aiQuota),
   },
 });
 let cookie = "";

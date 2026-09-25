@@ -1,5 +1,9 @@
 # FolioAsk MVP: document questions with verifiable sources
 
+The planned subscription release is specified in
+[Subscriptions, affordable AI, and private documents](subscriptions-spec.md).
+It is not yet enabled; the current pilot restrictions below still apply.
+
 ## Current pilot amendment — public real documents (#45, 2026-09-24)
 
 This owner-approved slice supersedes the original PDF-only/synthetic admission

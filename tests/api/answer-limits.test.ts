@@ -12,7 +12,7 @@ test("failed and invalid answers cost no allowance, not-found and concurrent suc
     "hex",
   );
   const provider: ModelProvider = {
-    kind: "free",
+    billing: "unpaid",
     indexKey: "controlled",
     embed: async (texts) => texts.map(() => [1, 0]),
     answer: async (question) => {

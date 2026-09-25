@@ -1,9 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { DocumentRecord } from "./documents.ts";
 import { HttpError } from "./http.ts";
+import { PILOT_ENTITLEMENTS } from "./entitlements.ts";
 import {
   DEFAULT_STORAGE_POLICY,
-  FREE_LIMITS,
   type StorageOperation,
   type StoragePolicy,
 } from "./storage-limits.ts";
@@ -94,7 +94,7 @@ export class SqliteStorageGuard {
       const snapshot = this.snapshot(document.ownerId);
       if (
         Number(usage?.uploads ?? 0) + snapshot.reservedUploads >=
-        FREE_LIMITS.uploads
+        PILOT_ENTITLEMENTS.uploads
       )
         throw new HttpError(
           429,
@@ -104,14 +104,14 @@ export class SqliteStorageGuard {
       if (
         !Number.isSafeInteger(document.bytes) ||
         document.bytes <= 0 ||
-        document.bytes > FREE_LIMITS.fileBytes
+        document.bytes > PILOT_ENTITLEMENTS.fileBytes
       )
         throw new HttpError(413, "Free files must be 30 MB or smaller.");
       if (
         Number(usage?.storedBytes ?? 0) +
           snapshot.reservedBytes +
           document.bytes >
-        FREE_LIMITS.storageBytes
+        PILOT_ENTITLEMENTS.storageBytes
       )
         throw new HttpError(
           429,
